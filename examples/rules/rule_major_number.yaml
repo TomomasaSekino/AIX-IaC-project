@@ -1,0 +1,13 @@
+rule_id: RULE-AIX-LVM-001
+version: 0.1.0
+name: Shared PowerHA VG major number must be identical on all nodes
+target: aix.enhanced_concurrent_vgs[*].major_number
+condition: values_are_identical_across_cluster_nodes
+severity: high
+message: PowerHA-managed shared VG has different major numbers across nodes.
+applies_when:
+  powerha_managed: true
+evidence_requirements:
+  - lsvg
+  - odm_or_major_number_inventory
+status: candidate
