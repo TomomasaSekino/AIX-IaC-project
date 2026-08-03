@@ -1,0 +1,85 @@
+design_id: DESIGN-POWERHA-001
+version: 0.1.0
+environment: lab
+
+managed_systems:
+  - id: power-system-a
+    hmc: hmc-a
+    vios:
+      - vios-a1
+      - vios-a2
+
+lpars:
+  - name: aixha01
+    managed_system: power-system-a
+    virtual_fc:
+      - vios: vios-a1
+        client_slot: 10
+        server_slot: 110
+      - vios: vios-a2
+        client_slot: 20
+        server_slot: 120
+    networks:
+      - name: service_net
+        redundancy_group: net-a
+      - name: heartbeat_net
+        redundancy_group: net-b
+
+  - name: aixha02
+    managed_system: power-system-a
+    virtual_fc:
+      - vios: vios-a1
+        client_slot: 10
+        server_slot: 210
+      - vios: vios-a2
+        client_slot: 20
+        server_slot: 220
+    networks:
+      - name: service_net
+        redundancy_group: net-a
+      - name: heartbeat_net
+        redundancy_group: net-b
+
+storage:
+  shared_luns:
+    - lun_id: lun-app-01
+      expected_paths_per_node: 4
+      reserve_policy: no_reserve
+    - lun_id: lun-app-02
+      expected_paths_per_node: 4
+      reserve_policy: no_reserve
+
+aix:
+  enhanced_concurrent_vgs:
+    - name: appvg
+      major_number: 57
+      auto_varyon: false
+      disks:
+        - lun-app-01
+        - lun-app-02
+      filesystems:
+        - mount_point: /app
+          type: jfs2
+          log: inline
+        - mount_point: /app/log
+          type: jfs2
+          log: inline
+
+powerha:
+  cluster_name: hacluster01
+  nodes:
+    - aixha01
+    - aixha02
+  resource_groups:
+    - name: rg_app01
+      startup_policy: online_on_home_node_only
+      fallover_policy: fallover_to_next_priority_node
+      fallback_policy: never_fallback
+      nodes:
+        - aixha01
+        - aixha02
+      volume_groups:
+        - appvg
+      filesystems:
+        - /app
+        - /app/log
