@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/incident.schema.json",
+  "title": "Infrastructure Incident",
+  "type": "object",
+  "required": [
+    "incident_id",
+    "title",
+    "phase",
+    "symptom",
+    "status"
+  ],
+  "properties": {
+    "incident_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "symptom": {
+      "type": "string"
+    },
+    "impact": {
+      "type": "string"
+    },
+    "root_cause": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "remediation_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "enum": [
+        "open",
+        "investigating",
+        "resolved",
+        "closed"
+      ]
+    },
+    "rule_candidate_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
