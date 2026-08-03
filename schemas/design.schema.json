@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/design.schema.json",
+  "title": "AIX HA Design",
+  "type": "object",
+  "required": [
+    "design_id",
+    "version",
+    "environment",
+    "managed_systems",
+    "lpars",
+    "powerha"
+  ],
+  "properties": {
+    "design_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "managed_systems": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "hmc",
+          "vios"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "hmc": {
+            "type": "string"
+          },
+          "vios": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "lpars": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "managed_system",
+          "virtual_fc",
+          "networks"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "managed_system": {
+            "type": "string"
+          },
+          "virtual_fc": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "required": [
+                "vios",
+                "client_slot",
+                "server_slot"
+              ],
+              "properties": {
+                "vios": {
+                  "type": "string"
+                },
+                "client_slot": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "server_slot": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "networks": {
+            "type": "array",
+            "minItems": 2
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object"
+    },
+    "powerha": {
+      "type": "object",
+      "required": [
+        "cluster_name",
+        "nodes",
+        "resource_groups"
+      ],
+      "properties": {
+        "cluster_name": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string"
+          }
+        },
+        "resource_groups": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
