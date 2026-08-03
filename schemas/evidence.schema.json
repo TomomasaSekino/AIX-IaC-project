@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/evidence.schema.json",
+  "title": "Evidence Package",
+  "type": "object",
+  "required": [
+    "package_id",
+    "build_run_id",
+    "phase",
+    "target_layer",
+    "collected_at",
+    "collector_version",
+    "integrity_hash",
+    "items"
+  ],
+  "properties": {
+    "package_id": {
+      "type": "string"
+    },
+    "build_run_id": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "target_layer": {
+      "enum": [
+        "hmc",
+        "powervm",
+        "vios",
+        "san",
+        "aix",
+        "powerha",
+        "application"
+      ]
+    },
+    "target_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "collector_version": {
+      "type": "string"
+    },
+    "integrity_hash": {
+      "type": "string"
+    },
+    "confidentiality": {
+      "enum": [
+        "public_sample",
+        "internal",
+        "confidential",
+        "restricted"
+      ]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "source_type",
+          "content_ref"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "content_ref": {
+            "type": "string"
+          },
+          "parser_status": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
