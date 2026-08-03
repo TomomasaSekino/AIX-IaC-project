@@ -1,0 +1,14 @@
+incident_id: INC-0001
+title: PowerHA resource group start failed because VG major number differed between nodes
+phase: powerha_start
+symptom: Resource group failed during varyon of appvg
+impact: Application filesystems could not be mounted on the takeover node
+root_cause: appvg major number was not identical on aixha01 and aixha02
+evidence_ids:
+  - EVI-0101
+  - EVI-0102
+remediation_ids:
+  - REM-0001
+status: resolved
+rule_candidate_ids:
+  - RULE-AIX-LVM-001
