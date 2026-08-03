@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/rule.schema.json",
+  "title": "Deterministic Rule",
+  "type": "object",
+  "required": [
+    "rule_id",
+    "version",
+    "name",
+    "target",
+    "condition",
+    "severity",
+    "status"
+  ],
+  "properties": {
+    "rule_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
+    },
+    "condition": {
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "applies_when": {
+      "type": "object"
+    },
+    "evidence_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "enum": [
+        "candidate",
+        "approved",
+        "deprecated"
+      ]
+    }
+  }
+}
