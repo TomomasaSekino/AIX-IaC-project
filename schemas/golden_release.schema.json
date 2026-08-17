@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/golden_release.schema.json",
+  "title": "Golden Release",
+  "type": "object",
+  "required": [
+    "golden_release_id",
+    "release_id",
+    "environment",
+    "aix_oslevel",
+    "application_version",
+    "test_result",
+    "evidence_snapshot_id",
+    "mksysb"
+  ],
+  "properties": {
+    "golden_release_id": {"type": "string"},
+    "release_id": {"type": "string"},
+    "environment": {"type": "string"},
+    "aix_oslevel": {"type": "string"},
+    "ptf_bundle": {"type": ["string", "null"]},
+    "application_version": {"type": "string"},
+    "iac_commit": {"type": "string"},
+    "test_result": {"enum": ["passed"]},
+    "evidence_snapshot_id": {"type": "string"},
+    "approved_exceptions": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "mksysb": {
+      "type": "object",
+      "required": ["mksysb_id", "storage_ref", "created_at"],
+      "properties": {
+        "mksysb_id": {"type": "string"},
+        "storage_ref": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "integrity_hash": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "additionalProperties": true
+}
