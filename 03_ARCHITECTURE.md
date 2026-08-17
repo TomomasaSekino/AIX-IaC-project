@@ -2,115 +2,232 @@
 
 ## 3.1 全体構成
 
+本プロジェクトは、**Virtual Reference Platform** と **PowerVS Live Validation Platform** を分離し、その上にIaC、NIM、Release Promotion、Evidence RAG、LLMを配置する。
+
 ```mermaid
 flowchart TB
+    subgraph REF[Virtual Reference Platform]
+      HMC[Dual HMC]
+      PWR[Power Systems / PowerVM]
+      VIO[Dual VIOS]
+      NET[SEA / Virtual Ethernet]
+      FC[NPIV / vSCSI / Dual FC Fabric]
+      SAN[Shared SAN]
+      HMC --> PWR --> VIO
+      VIO --> NET
+      VIO --> FC --> SAN
+    end
+
+    subgraph LIVE[PowerVS Live Validation Platform]
+      W[PowerVS Workspace]
+      A1[AIX LPAR/VSI DEV01]
+      A2[AIX LPAR/VSI DEV02]
+      VOL[Shareable Volumes]
+      NIM[NIM Server]
+      HA[PowerHA]
+      W --> A1
+      W --> A2
+      W --> VOL
+      A1 --> HA
+      A2 --> HA
+      NIM --> A1
+      NIM --> A2
+    end
+
     D[Design as Code] --> V[Schema / Topology Validator]
     V --> R[Deterministic Rule Engine]
     R --> P[Plan Generator]
-    P --> L[LLM Design Reviewer]
+    P --> L[LLM Design / Change Reviewer]
     L --> A{Human Approval}
-    A -->|Approved| X[Non-LLM Executor]
-    A -->|Rejected| D
+    A -->|Approved| X[Controlled Executor]
+    X --> LIVE
+    X --> NIM
     X --> C[Evidence Collectors]
-    C --> N[Parser / Normalizer / Redactor]
+
+    REF --> SIM[Simulated Evidence]
+    LIVE --> C
+    SIM --> N[Parser / Normalizer / Redactor]
+    C --> N
+
     N --> S1[(Raw Evidence Store)]
     N --> S2[(Structured Evidence Store)]
-    N --> S3[(Vector / Keyword Index)]
+    N --> S3[(Keyword / Vector Index)]
     N --> S4[(Topology Graph)]
-    S2 --> Q[Hybrid Retriever]
+
+    K[(Knowledge RAG)] --> Q[Hybrid Retriever]
+    S2 --> Q
     S3 --> Q
     S4 --> Q
+    CASE[(Case RAG)] --> Q
     Q --> E[LLM Evidence Analyst]
-    E --> F[Findings / Next Checks / Report]
-    F --> H{Human Review}
-    H --> M[Learning Candidate Generator]
-    M --> K[Knowledge / Rule / Regression Candidate]
-    K --> G{Promotion Gate}
-    G -->|Approved + Tests Passed| R
-    G -->|Approved| S3
+
+    E --> GATE[Promotion Review]
+    GATE --> PG{Rule / Test / Evidence Gate}
+    PG -->|Pass| PROMOTE[Promote Release]
+    PROMOTE --> MS[mksysb / Golden Release]
+    MS --> CASE
+    MS --> S2
 ```
 
-## 3.2 中核コンポーネント
+## 3.2 Power Platform境界
 
-### Design Repository
-設計YAML、JSON Schema、テンプレート、環境差分、ADRを管理する。
+### Virtual Reference Platform
+実務で想定するPower基盤全体を論理設計する。
 
-### Topology Validator
-設計参照を解決し、LPARからアプリケーションまでの依存関係を構築する。
+- Dual HMC
+- Power Systems / PowerVM
+- LPAR Profile
+- Dual VIOS
+- SEA redundancy
+- NPIV / vSCSI
+- Dual FC Fabric
+- Shared SAN
+- AIX LPAR
+- PowerHA
 
-### Deterministic Rule Engine
-確定的に判定可能な問題を検出する。LLMより先に実行し、判定結果を固定する。
+PowerVSで直接操作できないHMC / VIOS / SAN層は、設計モデル、Adapter Plan、匿名化・合成した模擬Evidenceで検証する。
 
-### Plan Generator
-製品・バージョン別Adapterを使い、実行手順と期待エビデンスを生成する。
+### PowerVS Live Validation Platform
+実機検証対象。
 
-### Approval Gateway
-Plan、変更差分、リスク、ロールバック方針を人間が承認する。
+- PowerVS Workspace
+- AIX VSI / LPAR
+- CPU / Memory / Network
+- PowerVS Volume / Shareable Volume
+- AIX hdisk / MPIO
+- PVID / VG / LV / JFS2
+- Enhanced Concurrent VG
+- PowerHA
+- NIM
+- Failover / Failback
+- mksysb
+- Evidence収集
 
-### Executor
-認証情報を保有する唯一の実行コンポーネント。LLMから直接呼び出せない。
+PowerVS上で見えない物理層を「存在しないもの」とは扱わない。論理上位層として保持し、実測可能範囲との境界を明示する。
 
-### Evidence Pipeline
-収集、原本保存、Parse、正規化、匿名化、索引作成を行う。
+## 3.3 実行部品
 
-### Evidence Stores
-- Raw Store: 改変しない原本
-- Structured Store: 正規化されたFactと関係
-- Search Index: VectorとKeyword
-- Graph Store: 依存関係と経路
+既存のPower/AIX向けIaC資産を再利用する。
 
-### Hybrid Retriever
-構造条件、キーワード、ベクトル、グラフを組み合わせ、根拠を取得する。
+- PowerVS: Terraform Provider / Module
+- AIX: Ansible Collection / shell / NIM
+- HMC: HMC向けAnsible Collection等をAdapter化
+- VIOS: VIOS向けAnsible Collection等をAdapter化
+- PowerHA: PowerHA向けCollection / command Adapter
+- Application Deployment: DevOps Deploy等の外部Release Engineを接続可能にする
 
-### LLM Agents
-設計意図、類似事例、原因候補、確認順序、報告書を生成する。
+本プロジェクトは既存Moduleの再実装ではなく、**統合Plan、Evidence Gate、Release Promotion、RAG、LLM、学習**を研究対象とする。
 
-### Learning Pipeline
-人間レビュー済みの結果を、ルール、知識、ゴールデンエビデンス、回帰テストへ昇格する。
+## 3.4 Release Architecture
 
-## 3.3 構築シーケンス
+ReleaseはAIX更新とApplication更新を一体で管理する。
+
+```mermaid
+flowchart LR
+    DEF[Release Definition] --> DEV[DEV]
+    DEV --> N1[NIM: TL/SP/PTF]
+    DEV --> D1[Application Deploy]
+    N1 --> T1[Test + Evidence]
+    D1 --> T1
+    T1 --> G1{Promotion Gate}
+    G1 -->|Pass| QA[QA]
+    G1 -->|Fail| FIX[Fix / Re-plan]
+    QA --> N2[NIM: Same AIX Level]
+    QA --> D2[Same Artifact]
+    N2 --> T2[Test + Evidence]
+    D2 --> T2
+    T2 --> G2{Promotion Gate}
+    G2 -->|Pass| PROD[PROD-equivalent]
+    PROD --> MKS[mksysb]
+    MKS --> GOLD[Golden Release]
+```
+
+Promotion Gateの確定判定はRule Engine / Test Result / Evidence Comparison / Approved Exceptionで行う。LLMはリスク要約と追加確認提案を担当する。
+
+## 3.5 Evidence / RAG Architecture
+
+RAGは三層構造とする。
+
+### Knowledge RAG
+- PowerVM設計原則
+- HMC / VIOS
+- NPIV / SEA / vSCSI
+- SAN / MPIO
+- AIX / LVM / JFS2
+- NIM
+- PowerHA
+- Release運用知識
+
+### Evidence RAG
+- HMC simulated evidence
+- VIOS simulated evidence
+- SAN simulated evidence
+- PowerVS live evidence
+- NIM execution evidence
+- AIX / PowerHA live evidence
+- Test evidence
+
+### Case RAG
+- 正常構築
+- Release成功例
+- 障害
+- 原因
+- 是正
+- 設計判断
+- Regression Case
+- Golden Release
+
+検索はStructured / Keyword / Vector / Graphを組み合わせる。
+
+## 3.6 LLM介在点
+
+LLMは以下に限定して高い価値を出す。
+
+1. Design Review
+2. Pre-change Impact Review
+3. Post-change Evidence Analysis
+4. Test Failure Hypothesis / Additional Evidence Suggestion
+5. Promotion Risk Summary
+6. Golden / Rule / Regression候補生成
+
+LLMは実行、確定Rule判定、昇格可否の最終決定を担当しない。
+
+## 3.7 構築・更新シーケンス
 
 ```mermaid
 sequenceDiagram
     participant U as Engineer
     participant O as Orchestrator
     participant R as Rule Engine
-    participant L as LLM Reviewer
+    participant L as LLM
     participant E as Executor
+    participant N as NIM
     participant C as Evidence Pipeline
-    participant G as Evidence RAG
+    participant G as RAG
 
-    U->>O: 設計YAML投入
-    O->>R: Schema/Topology/Rule検査
-    R-->>O: 確定Finding
-    O->>L: 設計・Finding・過去事例でレビュー
-    L-->>U: Plan、リスク、根拠
-    U->>O: 承認
-    O->>E: 承認済みPlan実行
-    E->>C: 工程ごとの証跡
-    C->>G: 正規化・索引
-    G->>L: 正常系・類似障害・差分
-    L-->>U: 結果、次の確認、未解決事項
+    U->>O: Design / Release Definition
+    O->>R: Schema / Topology / Rule validation
+    R-->>O: Deterministic Findings
+    O->>G: Similar design / release / incident retrieval
+    G-->>L: Knowledge + Evidence + Cases
+    L-->>U: Pre-change review / risks / required tests
+    U->>O: Approval
+    O->>E: IaC / Application Plan
+    O->>N: AIX lifecycle Plan
+    E->>C: Execution Evidence
+    N->>C: TL/SP/PTF / mksysb Evidence
+    C->>G: Normalize / Index
+    O->>R: Test / Evidence Gate evaluation
+    G->>L: Current vs Golden / Similar cases
+    L-->>U: Risk summary / additional checks
+    R-->>O: Promotion decision inputs
 ```
 
-## 3.4 対象技術レイヤー
+## 3.8 配置モデル
 
-1. HMC / Managed System
-2. PowerVM / LPAR Profile
-3. Dual VIOS / vFC / SEAまたは冗長NIC
-4. FC Switch / SAN Fabric
-5. Storage LUN / Host Mapping
-6. AIX MPIO / hdisk / PVID
-7. Enhanced Concurrent VG / LV / JFS2
-8. PowerHA Cluster / Network / Service IP / RG
-9. Application Controller / Monitoring / Backup
-10. Failover / Failback / Operational Evidence
-
-## 3.5 配置モデル
-
-初期MVPはローカルまたはCI上で動作する。実機連携時は以下を分離する。
-
-- Control Plane: API、Orchestrator、Rule、RAG、LLM
-- Execution Plane: HMC/VIOS/AIXへ到達可能な閉域実行器
-- Data Plane: Evidence Store、Graph、Index
-- Approval Plane: GitHub Pull Requestまたは専用UI
+- Control Plane: API、Orchestrator、Rule、Promotion、LLM
+- Execution Plane: Terraform / Ansible / NIM / Deploy Adapter
+- Evidence Plane: Collectors、Raw Store、Structured Store、Index、Graph
+- Learning Plane: Golden、Case、Rule Candidate、Regression
+- Approval Plane: GitHub PRまたは専用UI
+- Validation Plane: PowerVS + simulated upper Power platform
