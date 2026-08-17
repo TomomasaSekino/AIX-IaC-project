@@ -2,33 +2,61 @@
 
 ## 8.1 自律成長の定義
 
-モデル自体が勝手に再学習することではない。構築経験を、検索知識、正常系基準、確定ルール、回帰テスト、設計テンプレートへ変換し、次回以降の能力を高めることを指す。
+本プロジェクトにおける自律成長とは、モデル自体が勝手に再学習することではない。構築・更新・昇格・試験・障害対応で得た経験を、Knowledge、Golden Baseline、Golden Release、Rule、Regression Test、Parser改善、Retrieval改善へ変換し、次回以降の能力を高めることを指す。
 
 ## 8.2 学習入力
 
-- 構築前後Evidence
-- 正常/異常判定
+- Design / Plan
+- PowerVS live Evidence
+- HMC / VIOS / SAN simulated Evidence
+- NIM更新前後Evidence
+- TL / SP / PTF適用結果
+- Application Deploy結果
+- Test結果
+- Promotion結果
+- mksysb metadata
+- PowerHA Failover / Failback結果
 - 人間レビュー
 - 障害記録
 - 根本原因
 - 是正結果
-- Failover試験
 - LLM指摘の採否
 - 誤検出・見逃し
-- 構築所要時間
+- 構築・更新所要時間
 
 ## 8.3 学習成果物
 
 1. Knowledge Item
 2. Golden Baseline
-3. Rule Candidate
-4. Regression Case
-5. Parser Improvement
-6. Design Template Update
-7. Prompt Improvement
-8. Retrieval Tuning
+3. Golden Release
+4. Rule Candidate
+5. Regression Case
+6. Parser Improvement
+7. Design Template Update
+8. Release Template Update
+9. Prompt Improvement
+10. Retrieval Tuning
+11. Test Suite Improvement
 
-## 8.4 昇格フロー
+## 8.4 Promotionと学習
+
+Release Promotionを主要な学習イベントとして扱う。
+
+```mermaid
+flowchart LR
+    R[Release] --> DEV[DEV Test]
+    DEV -->|Pass| QA[QA Test]
+    QA -->|Pass| PROD[PROD-equivalent]
+    PROD --> M[mksysb]
+    M --> G[Golden Release Candidate]
+    G --> H{Human Approval}
+    H -->|Approved| P[Promoted Golden Release]
+    P --> N[Next Release Baseline]
+```
+
+Promotion成功は「このAIXレベル・PTF・Application・IaC・Testの組み合わせが検証済み」であることを示す。
+
+## 8.5 Candidate Promotion Flow
 
 ```mermaid
 flowchart LR
@@ -41,9 +69,48 @@ flowchart LR
     M -->|誤検出・劣化| C
 ```
 
-## 8.5 Rule Candidate生成
+## 8.6 Golden Baseline
 
-障害または差分から以下を生成する。
+構成単位の正常Evidenceを保持する。
+
+例:
+- MPIO正常パス構成
+- Enhanced Concurrent VG
+- PowerHA RG状態
+- NIM client定義
+
+単一案件の値を普遍化せず、適用条件と製品Versionを保持する。
+
+## 8.7 Golden Release
+
+Release単位の検証済み状態を保持する。
+
+昇格条件:
+
+- target environmentまでPromotion成功
+- 必須Test PASS
+- 必須Evidence取得済み
+- 未解決Critical Findingなし
+- 例外がある場合は承認済み
+- mksysb取得済み、または取得不要理由を記録
+- Human Review済み
+
+保存対象:
+
+- Release Definition
+- AIX oslevel
+- PTF / TL / SP
+- Middleware / Application version
+- IaC commit
+- Rule set version
+- Test result
+- Evidence Snapshot
+- Approved exceptions
+- mksysb reference
+
+## 8.8 Rule Candidate
+
+障害、Test failure、Promotion failure、Evidence差分から以下を生成する。
 
 - 検出対象
 - 条件式
@@ -51,56 +118,49 @@ flowchart LR
 - Severity
 - 説明
 - 根拠Evidence
+- Evidence origin
 - 既知の例外
-- テストケース
+- Test case
 
-LLMは候補を生成できるが、正式Ruleには直接反映しない。
+LLMはCandidate生成まで。正式Ruleへの昇格はRegression + Human Approvalを必須とする。
 
-## 8.6 Golden Baseline更新
+## 8.9 Regression Case
 
-同一構成の複数成功例から共通属性を抽出する。単一案件の値を普遍化しない。
-
-更新条件:
-
-- 成功試験済み
-- 人間承認済み
-- 機密除去済み
-- 対象バージョン明示
-- 未解決Findingの扱い明示
-
-## 8.7 回帰試験
-
-障害ごとに以下を保存する。
+過去問題ごとに以下を保存する。
 
 - failing_design
+- failing_release
 - failing_evidence
 - expected_findings
 - expected_evidence_refs
 - remediation
 - passing_evidence
+- affected_aix_level
+- affected_application_version
 
-CIは「過去に学んだ事故を忘れていないか」を検証する。
+CIは「過去に学んだ問題を忘れていないか」を検証する。
 
-## 8.8 Retrieval改善
+## 8.10 Retrieval改善
 
 検索ログから以下を評価する。
 
-- 正解事例が上位に出たか
-- 不要事例が混入したか
-- バージョン差を誤適用したか
-- 人間が別事例を採用したか
+- 正解Caseが上位に出たか
+- live Evidenceよりsimulated Evidenceを過大評価していないか
+- AIX level / PTF / Application version差を誤適用していないか
+- 人間が別Caseを採用したか
+- Promotion判断支援に有効だったか
 
-評価結果はMetadata、Query Expansion、Reranker改善へ反映する。
+評価結果をMetadata、Query Expansion、Reranker、Graph traversalへ反映する。
 
-## 8.9 学習レベル
+## 8.11 Learning Level
 
 ### Level 1: Assisted
-候補生成のみ。人間がすべて採否判断。
+Candidate生成のみ。人間が採否を判断する。
 
 ### Level 2: Controlled
-承認済みKnowledgeの索引更新を自動化。Rule昇格は手動。
+承認済みKnowledge、Case、Golden Releaseの索引更新を自動化する。Rule昇格は手動。
 
 ### Level 3: Policy-driven
-低リスクMetadata・タグ・検索同義語を自動更新。Ruleはテスト・承認必須。
+低リスクMetadata、Tag、検索同義語等を自動更新する。Rule、Promotion Policy、Golden Releaseは承認必須。
 
-初期目標はLevel 2とする。
+初期研究目標はLevel 2とする。
