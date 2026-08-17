@@ -1,15 +1,21 @@
 {
   "package_id": "EVPKG-0001",
+  "project_id": "AIX-IaC-project",
+  "environment": "dev",
+  "release_id": "REL-2026-08-001",
   "build_run_id": "RUN-0001",
   "phase": "post_storage",
   "target_layer": "aix",
+  "platform": "powervs",
+  "evidence_origin": "live",
+  "validation_status": "verified",
   "target_ids": [
     "aixha01",
     "aixha02",
     "appvg"
   ],
-  "collected_at": "2026-08-03T08:00:00+09:00",
-  "collector_version": "0.1.0",
+  "collected_at": "2026-08-17T12:00:00+09:00",
+  "collector_version": "0.2.0",
   "integrity_hash": "sha256:sample",
   "confidentiality": "public_sample",
   "items": [
