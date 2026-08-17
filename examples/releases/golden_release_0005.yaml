@@ -1,0 +1,15 @@
+golden_release_id: GOLDREL-0005
+release_id: REL-2026-08-001
+environment: prod_equivalent
+aix_oslevel: "7300-02-03"
+ptf_bundle: PTF-2026Q3
+application_version: "2.4.1"
+iac_commit: abcdef0
+test_result: passed
+evidence_snapshot_id: SNAP-0005
+approved_exceptions: []
+mksysb:
+  mksysb_id: MK-0005
+  storage_ref: nim://mksysb/GOLDREL-0005
+  created_at: "2026-08-17T12:30:00+09:00"
+  integrity_hash: "sha256:sample"

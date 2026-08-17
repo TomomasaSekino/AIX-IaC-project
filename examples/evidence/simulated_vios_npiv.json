@@ -1,0 +1,27 @@
+{
+  "package_id": "EVPKG-SIM-0001",
+  "project_id": "AIX-IaC-project",
+  "environment": "virtual_reference",
+  "release_id": null,
+  "build_run_id": "SIM-RUN-0001",
+  "phase": "design_validation",
+  "target_layer": "vios",
+  "platform": "virtual_reference",
+  "evidence_origin": "simulated",
+  "validation_status": "assumed",
+  "target_ids": ["vios-a1", "vios-a2", "aixha01"],
+  "collected_at": "2026-08-17T12:00:00+09:00",
+  "collector_version": "0.2.0",
+  "integrity_hash": "sha256:simulated-sample",
+  "confidentiality": "public_sample",
+  "items": [
+    {
+      "evidence_id": "EVI-SIM-0001",
+      "source_type": "simulated_command_output",
+      "command": "lsmap -all -npiv",
+      "exit_code": 0,
+      "content_ref": "samples/vios/lsmap_npiv_simulated.txt",
+      "parser_status": "parsed"
+    }
+  ]
+}

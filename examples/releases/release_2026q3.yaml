@@ -1,0 +1,32 @@
+release_id: REL-2026-08-001
+base_golden_release: GOLDREL-0004
+
+aix:
+  target_oslevel: "7300-02-03"
+  update_type: ptf_bundle
+  update_bundle: PTF-2026Q3
+
+middleware:
+  version: "x.y.z"
+
+application:
+  artifact: app-2.4.1.tar.gz
+  version: "2.4.1"
+  checksum: "sha256:sample"
+
+iac:
+  git_commit: "abcdef0"
+
+tests:
+  suite_id: compatibility-2026Q3
+  require_powerha_failover: true
+
+promotion_policy:
+  required_evidence_coverage: 0.90
+  max_critical_findings: 0
+  max_unapproved_high_findings: 0
+
+promotion_state:
+  dev: passed
+  qa: not_started
+  prod_equivalent: not_started

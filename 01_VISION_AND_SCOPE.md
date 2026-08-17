@@ -2,70 +2,128 @@
 
 ## 1.1 ビジョン
 
-PowerVM / VIOS / SAN / AIX / PowerHA基盤の設計・構築・検証・障害対応を、Evidence RAGとIaCにより再現可能なエンジニアリングプロセスへ変換する。
+AIX / Power基盤の設計・構築・更新・検証・昇格を、IaC、NIM、Evidence RAG、LLMにより再現可能なエンジニアリングプロセスへ変換する。
 
-このシステムは、単にAIX環境を自動構築するものではない。構築時に得られるエビデンス、障害、是正、人間の判断を継続的に学習資産へ変換し、次回の構築速度・品質・原因究明能力を高める。
+本プロジェクトはポートフォリオ作成を主目的とせず、AIX / Power基盤へ現代的なIaC・AI技術を適用した場合、どこまで構築時間短縮、品質向上、知識継承、リリース安全性を実現できるかを検証する個人研究である。
+
+研究サイクルは以下を基本とする。
+
+`仮説 -> 設計 -> 実装 -> 実機/模擬検証 -> Evidence -> 評価 -> 設計更新`
 
 ## 1.2 解決する課題
 
-- 構築品質が担当者の経験と記憶に依存する
-- 手順書どおりでも実環境の状態が設計と一致しない
-- 過去の正常エビデンスや障害事例の検索に時間がかかる
-- HMC、VIOS、SAN、AIX、PowerHAの証跡が分断されている
-- 同じ障害や確認漏れが案件を越えて再発する
-- 熟練者レビューを毎回ゼロから実施している
-- 自動化コードが環境差分や製品バージョン差に追随しにくい
+- Power基盤の構築品質が担当者の経験と記憶に依存する
+- HMC、VIOS、SAN、AIX、PowerHAの証跡が分断される
+- 手順書どおりでも実環境が設計状態に一致しているとは限らない
+- PTF / TL / SP適用とアプリケーション変更の適合性確認が属人的になりやすい
+- DEVで確認した変更をQA、PRODへ同一条件で昇格させる仕組みがAIX標準では弱い
+- NIMによるOSライフサイクルとアプリケーションリリースが別々に管理されやすい
+- 過去の正常Evidence、障害、是正、レビュー判断を次回構築へ十分再利用できない
+- 熟練者レビューが毎回ゼロから繰り返される
 
 ## 1.3 主要価値
 
-### 構築時間短縮
-過去のゴールデンエビデンス、類似構成、障害事例、是正手順を即時検索し、次に確認すべき対象を絞り込む。
+### Power基盤全体を扱う
+AIX OSだけでなく、HMC / PowerVM / Dual VIOS / NPIV / SEA / FC Fabric / SAN / AIX / PowerHAまでを一つの論理トポロジーとして設計する。
 
-### 品質向上
-設計値、生成Plan、実測エビデンス、正常系ベースラインを横断比較し、構成漏れや冗長性不備を検出する。
+### 実行部品を再発明しない
+既存のTerraform Provider / Module、Ansible Collection、NIM等を実行部品として利用し、独自価値を統合制御、Evidence検証、Promotion、LLM支援へ置く。
 
-### 自律成長
-構築・障害・レビューの結果から、ルール候補、検索知識、回帰テスト、設計テンプレート改善案を生成する。
+### Evidence中心の品質保証
+設計値、Plan、実測Evidence、模擬上位層Evidence、Golden Baselineを比較し、構成漏れ、冗長性不備、リリース差分を検出する。
 
-### 説明可能性
-指摘には、入力設計、ルールID、取得エビデンスID、類似事例IDを必ず付与する。
+### AIX LifecycleとApplication Releaseの統合
+NIMによるPTF / TL / SP適用と、アプリケーション成果物のデプロイを同じRelease単位で追跡し、テスト合格後に次環境へ昇格する。
 
-## 1.4 対象範囲
+### Golden Release
+昇格後にmksysbを取得し、AIXレベル、PTF bundle、Application Version、Test Result、Evidence Snapshotと関連付ける。
 
-- PowerVM上のAIX LPAR構築
-- HMCによるLPAR Profile、仮想Ethernet、仮想FC設定
-- 冗長VIOS、NPIV、SEAまたは冗長ネットワーク経路
-- SAN LUN提示、AIX MPIO、PVID、VG、LV、JFS2
+### LLMによる知的支援
+変更前影響分析、Evidence差分解釈、テスト失敗時の原因候補、追加確認、昇格時リスク要約、学習候補生成を行う。
+
+## 1.4 PowerVS検証境界
+
+PowerVSではPowerVM基盤を利用するが、物理Power System、HMC、VIOS、SEA、FC Fabric等の管理はクラウドサービス側に属する。
+
+したがって研究では二層に分ける。
+
+### Virtual Reference Platform
+実務相当の上位Power基盤を論理設計する。
+
+- Dual HMC
+- Power Systems
+- Dual VIOS
+- SEA redundancy
+- NPIV / vSCSI
+- Dual FC Fabric
+- Shared SAN
+- AIX LPAR
+- PowerHA
+
+HMC / VIOS / SAN層は匿名化・合成した模擬Evidenceで検証する。
+
+### PowerVS Live Validation Platform
+PowerVSで実際に検証できる層。
+
+- AIX VSI / LPAR
+- CPU / Memory / Network
+- PowerVS Volume
+- AIX hdisk / MPIO
+- PVID / VG / LV / JFS2
 - Enhanced Concurrent VG
-- PowerHAクラスター、ネットワーク、サービスIP、Resource Group
-- アプリケーション起動停止、フェイルオーバー試験
-- 構築エビデンス収集、正規化、検索、差分比較
-- 障害・是正・人間レビューの学習資産化
-- GitHub上で公開可能なサンプル・設計・テスト
+- PowerHA
+- NIM
+- Failover / Failback
+- Evidence収集
 
-## 1.5 初期非対象
+## 1.5 RAG対象
+
+RAGは三層に分ける。
+
+1. `Knowledge RAG`: 設計原則、運用知識、製品知識
+2. `Evidence RAG`: 実測・模擬・文書由来の構成Evidence
+3. `Case RAG`: 正常構築、障害、原因、是正、設計判断、回帰試験
+
+実測Evidenceと模擬Evidenceは混同せず、出自と検証状態を必ず保持する。
+
+## 1.6 Release Promotion対象
+
+DEV -> QA -> PROD相当の環境昇格を研究対象とする。
+
+各Releaseには最低限以下を含める。
+
+- AIX target level
+- PTF / TL / SP bundle
+- Middleware version
+- Application artifact version
+- IaC version
+- Test suite
+- Evidence baseline
+- Approval status
+- mksysb reference
+
+## 1.7 初期非対象
 
 - LLMによる無承認の本番変更
-- SANストレージ固有APIの全面実装
-- FCスイッチ全製品への対応
-- PowerHA全バージョンへの完全互換
-- 機密エビデンスの公開
-- 初期段階でのモデルFine-tuning
 - 完全自律の障害復旧
+- ServiceNow等のITSMプラットフォーム代替
+- 自律Incident Commander
+- SANストレージ固有APIの全面実装
+- FCスイッチ全製品対応
+- PowerHA全バージョン完全互換
+- 機密Evidenceの公開
+- 初期段階でのモデルFine-tuning
 
-## 1.6 利用者
+障害対応については、過去事例検索、Evidence比較、原因候補、追加確認支援までを対象とする。
 
-- AIX / PowerVM / PowerHA設計者
-- 構築担当者
-- インフラレビュー担当者
-- 運用・障害対応担当者
-- 技術責任者・承認者
-- IaC / AI基盤開発者
+## 1.8 成功条件
 
-## 1.7 成功条件
-
-- 実測エビデンスが設計・Plan・過去正常系と紐付く
-- 指摘が証拠付きで再現可能
-- 過去障害を回帰テストで再検出できる
-- 構築ごとに検索知識と正常系ベースラインが増える
-- 人間承認なしに本番変更が行われない
+- Power基盤全体の論理設計とPowerVS実機検証境界が明確である
+- 実測Evidenceと模擬Evidenceが区別される
+- AIX構築・更新がIaC / NIMで再現できる
+- PTF適用とApplication Deployを同じReleaseとして追跡できる
+- DEV -> QA -> PROD相当のPromotion Gateを実装できる
+- 昇格後mksysbとGolden Releaseを関連付けられる
+- 指摘がRule / Evidence / Caseの根拠付きで再現可能である
+- 過去問題をRegression Testとして再検出できる
+- 構築・更新ごとにKnowledge / Golden / Rule候補が増える
