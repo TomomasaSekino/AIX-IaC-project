@@ -8,21 +8,20 @@
     "build_run_id",
     "phase",
     "target_layer",
+    "evidence_origin",
+    "validation_status",
     "collected_at",
     "collector_version",
     "integrity_hash",
     "items"
   ],
   "properties": {
-    "package_id": {
-      "type": "string"
-    },
-    "build_run_id": {
-      "type": "string"
-    },
-    "phase": {
-      "type": "string"
-    },
+    "package_id": {"type": "string"},
+    "project_id": {"type": "string"},
+    "environment": {"type": "string"},
+    "release_id": {"type": ["string", "null"]},
+    "build_run_id": {"type": "string"},
+    "phase": {"type": "string"},
     "target_layer": {
       "enum": [
         "hmc",
@@ -30,64 +29,50 @@
         "vios",
         "san",
         "aix",
+        "nim",
         "powerha",
-        "application"
+        "application",
+        "test",
+        "release"
       ]
+    },
+    "platform": {
+      "enum": ["powervs", "virtual_reference", "other"]
+    },
+    "evidence_origin": {
+      "enum": ["live", "simulated", "documented"]
+    },
+    "validation_status": {
+      "enum": ["verified", "assumed", "unverified"]
     },
     "target_ids": {
       "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "items": {"type": "string"}
     },
     "collected_at": {
       "type": "string",
       "format": "date-time"
     },
-    "collector_version": {
-      "type": "string"
-    },
-    "integrity_hash": {
-      "type": "string"
-    },
+    "collector_version": {"type": "string"},
+    "integrity_hash": {"type": "string"},
     "confidentiality": {
-      "enum": [
-        "public_sample",
-        "internal",
-        "confidential",
-        "restricted"
-      ]
+      "enum": ["public_sample", "internal", "confidential", "restricted"]
     },
     "items": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "evidence_id",
-          "source_type",
-          "content_ref"
-        ],
+        "required": ["evidence_id", "source_type", "content_ref"],
         "properties": {
-          "evidence_id": {
-            "type": "string"
-          },
-          "source_type": {
-            "type": "string"
-          },
-          "command": {
-            "type": "string"
-          },
-          "exit_code": {
-            "type": "integer"
-          },
-          "content_ref": {
-            "type": "string"
-          },
-          "parser_status": {
-            "type": "string"
-          }
+          "evidence_id": {"type": "string"},
+          "source_type": {"type": "string"},
+          "command": {"type": "string"},
+          "exit_code": {"type": "integer"},
+          "content_ref": {"type": "string"},
+          "parser_status": {"type": "string"}
         }
       }
     }
-  }
+  },
+  "additionalProperties": true
 }
