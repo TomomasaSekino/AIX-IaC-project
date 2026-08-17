@@ -1,46 +1,60 @@
-# AIX HA Engineering Intelligence Platform — Design v0.1
+# AIX Engineering Intelligence Platform — Design v0.2
 
-PowerVM / VIOS / SAN / AIX / PowerHA の構築を自動化し、構築エビデンスを中核資産として蓄積・検索・比較・再利用する、自己成長型エンジニアリング基盤の初期設計です。
+AIX / PowerVM / VIOS / SAN / PowerHA を対象に、IaC・NIM・リリース昇格・Evidence RAG・LLMを組み合わせ、AIX基盤エンジニアリングを再現可能かつ学習可能なプロセスへ変換する個人研究プロジェクトです。
 
-## 設計の中心思想
+GitHub公開は研究成果を外部化する手段であり、プロジェクトの目的そのものではありません。中心となる研究サイクルは、**仮説 → 設計 → 実装 → 実機検証 → Evidence → 評価 → 設計更新**です。
 
-1. **Evidence RAGを中心に置く**  
-   設計書や手順書だけでなく、HMC・VIOS・AIX・PowerHA・SANの実測エビデンスを、正常系・異常系・是正後の状態として蓄積する。
+## v0.2で追加した中核方針
 
-2. **確定判定と推論を分離する**  
-   JSON Schema、ルール、差分比較、トポロジー検査で判定可能な項目はコードで処理し、LLMは文脈理解・類似事例検索・原因候補・追加確認・説明生成を担う。
+1. **Power基盤全体を設計対象とする**  
+   HMC / PowerVM / Dual VIOS / NPIV / SEA / FC Fabric / SAN / AIX / PowerHA を一つの論理構成として扱います。
 
-3. **構築するほど強くなる**  
-   構築結果、人間レビュー、障害、是正、フェイルオーバー試験を、ゴールデンエビデンス、ルール、回帰テスト、検索知識へ昇格させる。
+2. **PowerVSでは検証可能範囲を明示する**  
+   PowerVS上では、PowerVMより下の物理基盤、HMC、VIOS、SAN Fabric等はIBM管理領域です。したがって、AIX LPAR、Volume、MPIO、LVM、JFS2、PowerHA、NIM、Evidence取得を実機検証し、上位Power基盤層は仮想上位設計と模擬Evidenceで補完します。
 
-4. **LLMに直接変更させない**  
-   LLMは計画・レビュー・分析・提案を行う。実行は承認済みPlanを非LLM実行器が行い、全操作を監査可能にする。
+3. **既存IaC資産を実行部品として再利用する**  
+   AIX、HMC、VIOS、PowerHA、PowerVS向けの既存Ansible CollectionやTerraform Provider/Moduleを再実装するのではなく、統合制御・検証・Evidence化・学習を独自価値とします。
 
-## 文書構成
+4. **NIMをAIX Lifecycle Engineとして組み込む**  
+   TL / SP / PTF適用、mksysb、復旧ポイント管理など、OSライフサイクルをリリースプロセスへ統合します。
+
+5. **DEV → QA → PROD相当のPromotion Pipelineを設ける**  
+   AIX更新、アプリケーション成果物、テスト、Evidenceを一つのReleaseとして扱い、各環境で同一条件を検証して昇格させます。
+
+6. **mksysbをGolden Releaseの復旧ポイントとして扱う**  
+   昇格後に取得したmksysbを、Release ID、AIXレベル、PTF bundle、Application Version、Test Result、Evidence Snapshotと関連付けます。
+
+7. **RAGを3層に分離する**  
+   Knowledge RAG、Evidence RAG、Case RAGを分け、実測Evidenceと模擬Evidenceを明確に識別します。
+
+8. **LLMは分析・推論・学習に寄せる**  
+   変更前影響レビュー、Evidence差分解釈、テスト失敗時の原因候補、追加確認、昇格時リスク要約、学習候補生成を担当します。確定判定と実行はRule Engine / Executor / Human Gateが担います。
+
+9. **インシデント管理プラットフォーム化は今回の範囲外**  
+   過去事例検索や調査支援は行いますが、自律Incident Commander、ITSM、ServiceNow代替を目標にはしません。
+
+## 設計文書
 
 | 文書 | 内容 |
 |---|---|
-| `01_VISION_AND_SCOPE.md` | 目的、価値、対象、非対象 |
+| `01_VISION_AND_SCOPE.md` | 研究目的、対象、PowerVS境界、非対象 |
 | `02_SYSTEM_REQUIREMENTS.md` | 機能・非機能・制約・受入条件 |
-| `03_ARCHITECTURE.md` | 全体構成、主要コンポーネント、処理フロー |
-| `04_DOMAIN_AND_DATA_MODEL.md` | ドメインモデル、エビデンスモデル、関係 |
-| `05_EVIDENCE_RAG_DESIGN.md` | 収集、正規化、索引、検索、比較、引用 |
-| `06_IAC_EXECUTION_DESIGN.md` | 生成、承認、実行、検証、再実行、ロールバック |
-| `07_LLM_AGENT_DESIGN.md` | エージェント責務、入出力、禁止事項 |
-| `08_LEARNING_LOOP_DESIGN.md` | 学習候補生成、評価、昇格、回帰試験 |
-| `09_SAFETY_AND_GOVERNANCE.md` | 権限、秘密情報、監査、安全制御 |
-| `10_TEST_AND_EVALUATION.md` | テスト戦略、品質指標、評価方法 |
+| `03_ARCHITECTURE.md` | Power基盤、PowerVS検証層、制御・Evidence・昇格アーキテクチャ |
+| `04_DOMAIN_AND_DATA_MODEL.md` | Powerトポロジー、Release、Golden Release、Evidenceモデル |
+| `05_EVIDENCE_RAG_DESIGN.md` | Knowledge / Evidence / Case RAG、実測・模擬Evidence、検索 |
+| `06_IAC_EXECUTION_DESIGN.md` | IaC、NIM、PowerHA、実行・Evidence Gate |
+| `07_LLM_AGENT_DESIGN.md` | LLM責務、変更前・変更後・テスト・昇格での介在点 |
+| `08_LEARNING_LOOP_DESIGN.md` | Golden、Rule、Regression、Release学習ループ |
+| `09_SAFETY_AND_GOVERNANCE.md` | 承認、秘密情報、実測/模擬Evidence管理 |
+| `10_TEST_AND_EVALUATION.md` | PowerVS実機、模擬上位層、Promotion Pipeline評価 |
+| `11_RELEASE_PROMOTION_DESIGN.md` | NIM + Application Deploy + Test + Promotion + mksysb |
 | `schemas/` | 機械可読スキーマ |
 | `examples/` | 正常・異常・学習例 |
 | `adr/` | 主要設計判断 |
-| `roadmap/ROADMAP.md` | MVPから実機連携までの段階計画 |
+| `roadmap/ROADMAP.md` | 実装・研究ロードマップ |
 
-## 想定成果
+## 独自価値
 
-- PowerVM / VIOS / SAN / AIX / PowerHA構築時間の短縮
-- 構築後確認の標準化と見落とし削減
-- 正常系との差分検出
-- 過去障害・是正事例の即時検索
-- 追加確認コマンドの提示
-- 再発防止ルールと回帰テストの自動生成支援
-- 熟練者の暗黙知を組織資産へ変換
+この研究の焦点は「AIXをTerraformやAnsibleで動かすこと」そのものではありません。
+
+**Power基盤全体の設計意図を保持し、既存IaCを統合して実行し、NIMによるOSライフサイクルとアプリケーションリリースを同じPromotion Pipelineで検証し、その結果をEvidence RAGとLLMへ還元すること**を中核とします。
