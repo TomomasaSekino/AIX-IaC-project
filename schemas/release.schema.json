@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/release.schema.json",
+  "title": "AIX Release Promotion Unit",
+  "type": "object",
+  "required": [
+    "release_id",
+    "aix",
+    "application",
+    "iac",
+    "tests",
+    "promotion_policy"
+  ],
+  "properties": {
+    "release_id": {"type": "string"},
+    "base_golden_release": {"type": ["string", "null"]},
+    "aix": {
+      "type": "object",
+      "required": ["target_oslevel"],
+      "properties": {
+        "target_oslevel": {"type": "string"},
+        "update_type": {"type": ["string", "null"]},
+        "update_bundle": {"type": ["string", "null"]}
+      }
+    },
+    "middleware": {
+      "type": "object",
+      "properties": {
+        "version": {"type": ["string", "null"]}
+      }
+    },
+    "application": {
+      "type": "object",
+      "required": ["artifact", "version", "checksum"],
+      "properties": {
+        "artifact": {"type": "string"},
+        "version": {"type": "string"},
+        "checksum": {"type": "string"}
+      }
+    },
+    "iac": {
+      "type": "object",
+      "required": ["git_commit"],
+      "properties": {
+        "git_commit": {"type": "string"}
+      }
+    },
+    "tests": {
+      "type": "object",
+      "required": ["suite_id"],
+      "properties": {
+        "suite_id": {"type": "string"},
+        "require_powerha_failover": {"type": "boolean"}
+      }
+    },
+    "promotion_policy": {
+      "type": "object",
+      "required": [
+        "required_evidence_coverage",
+        "max_critical_findings",
+        "max_unapproved_high_findings"
+      ],
+      "properties": {
+        "required_evidence_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "max_critical_findings": {"type": "integer", "minimum": 0},
+        "max_unapproved_high_findings": {"type": "integer", "minimum": 0}
+      }
+    },
+    "promotion_state": {
+      "type": "object",
+      "properties": {
+        "dev": {"enum": ["not_started", "running", "passed", "failed"]},
+        "qa": {"enum": ["not_started", "running", "passed", "failed"]},
+        "prod_equivalent": {"enum": ["not_started", "running", "passed", "failed"]}
+      }
+    }
+  },
+  "additionalProperties": true
+}
