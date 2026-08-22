@@ -163,6 +163,11 @@ DEV -> QA -> PROD-equivalentで、以下を固定または明示的に差分管�
 
 昇格可否はDeterministic条件で評価する。
 
+PowerHAについては次の2種類を明確に区別する。
+
+- `PowerHA Configuration Verification`: cluster verify / sync等による構成整合性の検証
+- `PowerHA Failover Test`: Resource Groupの実際のfailover / failbackによる動作検証
+
 例:
 
 - required tests = PASS
@@ -171,8 +176,24 @@ DEV -> QA -> PROD-equivalentで、以下を固定または明示的に差分管�
 - evidence coverage >= threshold
 - AIX target level = expected
 - application artifact hash = expected
-- PowerHA verify = PASS
-- failover test = PASS（要求Releaseのみ）
+- PowerHA Configuration Verification = PASS（PowerHA対象Releaseでは必須）
+- PowerHA Failover Test = PASS（`require_powerha_failover = true` のReleaseのみ必須）
+
+したがって、PowerHAを対象とするReleaseのGateは概念的に以下となる。
+
+```text
+Required Tests == PASS
+AND Critical Findings == 0
+AND Unapproved High Findings == 0
+AND Evidence Coverage >= threshold
+AND AIX Target Level == Expected
+AND Artifact Hash == Expected
+AND PowerHA Configuration Verification == PASS
+AND (
+    RequirePowerHAFailover == false
+    OR PowerHA Failover Test == PASS
+)
+```
 
 LLMのRisk SummaryはGate入力ではなく、Human Review支援情報とする。
 
@@ -210,11 +231,16 @@ mksysb取得時に以下を固定する。
 - auto varyon policy
 - JFS2 mount policy
 
-### PowerHA
-- cluster verify
+### PowerHA Configuration Verification
+- cluster verify / sync
 - RG state
 - shared resources
-- failover / failback
+
+### PowerHA Failover Test
+- failover result
+- failback result
+- Application Controller start/stop result
+- failover / failback後のRGおよびApplication状態
 
 ### NIM Update
 - expected oslevel
