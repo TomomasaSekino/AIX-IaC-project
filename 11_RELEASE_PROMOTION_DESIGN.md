@@ -100,11 +100,12 @@ Application artifactの配布は、DevOps Deploy等の外部Release Engine、Ans
 6. Post-update Evidence取得
 7. Application artifact deploy
 8. Compatibility / Regression Test
-9. PowerHA test（要求Releaseのみ）
-10. Evidence Comparison
-11. Promotion Gate
-12. LLM Risk Summary
-13. Human Promotion Approval
+9. PowerHA Configuration Verification（PowerHA対象Releaseでは必須）
+10. PowerHA Failover Test（`require_powerha_failover = true` のReleaseのみ）
+11. Evidence Comparison
+12. Promotion Gate
+13. LLM Risk Summary
+14. Human Promotion Approval
 
 DEVは変更を最初に組み合わせて検証する環境とする。
 
@@ -132,7 +133,8 @@ DEVでの偶然の成功をQAで再現性として検証する。
 
 - QA合格Releaseの再現
 - 最終Promotion Gate
-- Failover / Failback
+- PowerHA Configuration Verification
+- PowerHA Failover Test（Release Policyで要求する場合）
 - Recovery確認
 - Evidence Snapshot固定
 - mksysb取得
@@ -142,6 +144,11 @@ DEVでの偶然の成功をQAで再現性として検証する。
 
 確定判定はRule Engineで行う。
 
+PowerHAのGate条件は次の2種類を区別する。
+
+- `PowerHA Configuration Verification`: cluster verify / sync等による構成整合性検証
+- `PowerHA Failover Test`: 実際のResource Group failover / failbackによる動作検証
+
 ```text
 Required Tests == PASS
 AND Critical Findings == 0
@@ -149,8 +156,14 @@ AND Unapproved High Findings == 0
 AND Evidence Coverage >= threshold
 AND AIX Target Level == Expected
 AND Artifact Hash == Expected
-AND Required PowerHA Verification == PASS
+AND PowerHA Configuration Verification == PASS
+AND (
+    RequirePowerHAFailover == false
+    OR PowerHA Failover Test == PASS
+)
 ```
+
+PowerHAを対象としないReleaseではPowerHA条件自体をGate対象外とする。PowerHAを対象とするReleaseではConfiguration Verificationを必須とし、Failover TestはRelease Definitionの `require_powerha_failover` に従って要求する。
 
 LLMはこの式を置き換えない。
 
@@ -174,7 +187,7 @@ Application Deploy Success
         +
 Compatibility / Regression Test
         +
-PowerHA / Operational Test
+Required PowerHA Verification / Test
         =
 Promotion Candidate
 ```
