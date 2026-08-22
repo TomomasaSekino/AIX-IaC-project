@@ -33,10 +33,22 @@ GitHub公開は研究成果を外部化する手段であり、プロジェク�
 9. **インシデント管理プラットフォーム化は今回の範囲外**  
    過去事例検索や調査支援は行いますが、自律Incident Commander、ITSM、ServiceNow代替を目標にはしません。
 
+## Human / AI Collaboration
+
+研究と実装は、**Human → ChatGPT → Codex → Claude Code** を基本分業とします。GitHubをAI間の共有外部記憶かつSource of Truthとして使い、会話履歴だけに依存した引き継ぎは行いません。
+
+- Human: Research Owner / Chief Engineer — Why、優先順位、リスク受容、最終判断
+- ChatGPT: Research Architect / Orchestrator — What、要件、Architecture、ADR、Task/Acceptance Criteria
+- Codex: Implementation Engineer — How、Code、Test、CI、Evidence、Pull Request
+- Claude Code: Independent Review / Assurance Engineer — Acceptance Criteria、設計整合、Regression、安全性、Evidenceの独立レビュー
+
+共通ルールは `AI_COLLABORATION.md`、Codex向け入口は `AGENTS.md`、Claude Code向け入口は `CLAUDE.md` に定義します。
+
 ## 設計文書
 
 | 文書 | 内容 |
 |---|---|
+| `AI_COLLABORATION.md` | Human / ChatGPT / Codex / Claude Codeの役割、権限、引き継ぎ、Source of Truth |
 | `01_VISION_AND_SCOPE.md` | 研究目的、対象、PowerVS境界、非対象 |
 | `02_SYSTEM_REQUIREMENTS.md` | 機能・非機能・制約・受入条件 |
 | `03_ARCHITECTURE.md` | Power基盤、PowerVS検証層、制御・Evidence・昇格アーキテクチャ |
