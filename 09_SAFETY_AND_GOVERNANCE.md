@@ -80,6 +80,10 @@ PowerVSではHMC / VIOS / SAN Fabricが直接検証できないため、上位�
 - Promotion exception
 - Rule正式昇格
 - Golden Release正式化
+- toolchainのinstall / upgrade / uninstall
+- PATH、Service、Shell profile等の実行環境変更
+
+承認は対象操作、対象、パラメータ、想定結果、必要に応じたRetry PolicyとStop Conditionに対して限定的に与える。
 
 ## 9.6 Promotion Governance
 
@@ -125,9 +129,14 @@ mksysb自体を公開リポジトリへ保存しない。
 - Evidence origin
 - LLM response
 - Approver
+- Approval scope
 - Execution command / module
 - NIM operation
 - Exit code
+- Expected result
+- Observed result
+- Stop condition activation
+- Retry count / retry reason
 - Evidence hash
 - Test result
 - Promotion decision
@@ -170,3 +179,90 @@ RuleまたはPromotion条件を例外扱いする場合:
 ## 9.12 Scope Governance
 
 本プロジェクトではインシデント調査支援を扱うが、ITSMプラットフォーム、ServiceNow代替、自律Incident Commander、無承認自動復旧は範囲外とする。
+
+## 9.13 Bounded Authorization
+
+Human Approvalは、明示的に提示された操作にのみ有効とする。
+
+禁止事項:
+
+- ある操作への承認を、後続の別操作への包括的承認として解釈すること
+- 失敗した仮説の承認を、そのまま次の修復仮説へ持ち越すこと
+- 「同じ目的だから」という理由でinstall、upgrade、設定変更、再起動、別経路操作へ承認範囲を拡張すること
+
+実行Planは必要に応じて以下を持つ。
+
+- authorized_action
+- target
+- parameters
+- expected_result
+- allowed_state_changes
+- diagnostic_allowlist
+- retry_policy
+- stop_conditions
+- approval identity / timestamp
+
+`diagnostic_allowlist` は、Unexpected Result発生後に追加承認なしで実行可能なread-only診断のみを定義する。状態変更操作は含めない。
+
+## 9.14 Fail-Stop Behavior
+
+承認済み操作の実行後、Observed ResultがExpected Resultと一致しない場合はFail-Stopする。
+
+Fail-Stop後に許可されるのは以下のみ。
+
+1. 現在状態を悪化させない
+2. 状態を変更しない
+3. 事前にDiagnostic Allowlistへ含まれる
+4. Failureの事実確認とEvidence取得に必要
+
+という条件を満たすread-only診断である。
+
+新しい状態変更を伴う修復には、新しい仮説、Plan、影響、Expected Result、Stop Conditionを提示し、再承認を得る。
+
+状態遷移:
+
+```text
+APPROVED
+  ↓
+EXECUTING
+  ↓
+OBSERVING
+  ├─ Expected   → CONTINUE
+  └─ Unexpected → STOPPED_UNEXPECTED
+                     ↓
+                 READ-ONLY DIAGNOSIS
+                     ↓
+                    REPORT
+                     ↓
+                   REPLAN
+                     ↓
+                 REAPPROVAL
+```
+
+## 9.15 Retry and Loop Governance
+
+RetryはPlanに事前定義されたRetry Policyの範囲でのみ実行する。
+
+- Retry可能回数、待機条件、再実行前提を明示する
+- 前提条件が変化した場合は既存Retry Policyを無効とする
+- 同一失敗に対するad-hocな試行錯誤を禁止する
+- 新しいEvidenceも前提変化もない反復は停止する
+- Retry Policyを使い切った場合はEscalationする
+
+「方法を少し変えた」だけで同じ原因への探索を無期限継続してはならない。
+
+## 9.16 Environment and Toolchain Governance
+
+Agentから現在のセッション上でツールが見えないことは、ホスト環境にそのツールが存在しない証明ではない。
+
+原則:
+
+- `command not found`、PATH未解決、権限不足を「未導入」と即断しない
+- host environmentとagent execution environmentを区別する
+- 既存導入状況をread-onlyに確認する
+- package managerによるinstall / upgrade / uninstallは明示承認を要求する
+- PATH、Shell profile、Service、Registry等の変更も状態変更として扱う
+- 環境変更を承認してもExpected Resultが得られなければ、その仮説は棄却しFail-Stopする
+- その承認を別の環境変更へ拡張してはならない
+
+この規則は開発端末だけでなく、PowerVS、AIX、NIM、PowerHA、CI/CD、Application Deploymentを含むすべての実行環境へ適用する。
