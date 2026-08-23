@@ -9,6 +9,7 @@
 - 各工程の前後でEvidenceを取得する
 - 途中失敗から安全に再開できる
 - Release単位でAIX更新とApplication更新を追跡する
+- 承認は明示された操作境界に限定し、Unexpected ResultではFail-Stopする
 
 ## 6.2 実行レイヤー
 
@@ -87,15 +88,21 @@ Planには以下を持たせる。
 - preconditions
 - commands / module calls
 - expected_changes
+- expected_result
 - expected_evidence
 - test_requirements
 - promotion_requirements
+- authorization_scope
+- diagnostic_allowlist
 - timeout
 - retry_policy
 - rollback_action
 - stop_condition
 - risk_level
 - approval_status
+- approval_identity / timestamp
+
+ApprovalはPlan全体への曖昧な包括許可ではなく、Plan内で明示されたstate-changing stepとその条件に対して適用する。
 
 ## 6.5 Adapter
 
@@ -252,3 +259,77 @@ AIX更新では「元に戻す」操作を安易に自動化せず、Golden Rele
 - Plan差分とPromotion条件をレビュー
 - 実行結果とEvidence ReportをRelease / commitへ紐付ける
 - Golden Release更新は承認履歴を残す
+
+## 6.14 Bounded Authorization / Fail-Stop Execution
+
+ExecutorはApprovalを「目的」ではなく「明示された操作」に対する権限として扱う。
+
+例:
+
+```text
+Plan Step:
+  action: apply_ptf_bundle
+  target: aix-dev-01
+  expected_result: oslevel == expected && required_filesets == committed
+  retry_policy: max_attempts=1 unless explicitly approved
+  diagnostic_allowlist:
+    - oslevel -s
+    - lslpp -L
+    - errpt -a
+  stop_condition:
+    - unexpected_exit_code
+    - expected_state_not_reached
+    - unplanned_reboot_required
+```
+
+実行後の処理:
+
+```text
+APPROVED STEP
+    ↓
+EXECUTE
+    ↓
+CAPTURE OBSERVED EVIDENCE
+    ├─ Expected Result
+    │      ↓
+    │   NEXT APPROVED STEP
+    │
+    └─ Unexpected Result
+           ↓
+        FAIL-STOP
+           ↓
+   READ-ONLY DIAGNOSTIC ALLOWLIST
+           ↓
+         REPORT
+           ↓
+        NEW PLAN
+           ↓
+      NEW APPROVAL
+```
+
+Unexpected Result発生後に、ExecutorまたはAgentが独断で以下へ遷移してはならない。
+
+- 別コマンドによる修復
+- package install / upgrade / uninstall
+- PATH / Service / Shell / Registry変更
+- reboot
+- failover / failback
+- rollback / recovery
+- 別Provider / Adapterへの切替
+- 追加state-changing retry
+
+これらが必要なら新しいPlanとして扱う。
+
+Read-only診断は、事前に`diagnostic_allowlist`へ定義された範囲でのみ継続できる。
+
+## 6.15 Retry Semantics
+
+Retryはエラー時の自由な試行錯誤ではなくPlanの一部とする。
+
+- retry対象Actionを明示する
+- max attemptsを明示する
+- retry前に再確認すべきpreconditionを定義する
+- 新しいEvidenceまたは前提変化がないad-hoc retryを禁止する
+- retry policyを超えた場合は`STOPPED_RETRY_EXHAUSTED`としてEscalationする
+
+Agentが同一ブロッカーに対して方法だけを変えながら探索を継続することをRetryとはみなさない。その場合は新しい仮説として再Plan・再承認を要求する。
