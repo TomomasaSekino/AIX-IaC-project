@@ -154,7 +154,13 @@ acceptance_criteria: []
 required_tests: []
 required_evidence: []
 safety_constraints: []
+authorized_state_changes: []
+diagnostic_allowlist: []
+retry_policy: {}
+stop_conditions: []
 ```
+
+For executable work, authorization-related fields must be explicit enough to distinguish read-only diagnosis from state-changing actions.
 
 A task is not complete because code exists. It is complete when the Acceptance Criteria are proven by tests and/or Evidence.
 
@@ -180,19 +186,69 @@ Collection: automation / Codex implementation
 Interpretation support: ChatGPT and project LLM components
 Acceptance: Human under deterministic rules and documented criteria
 
-## 8. Escalation Rules
+## 8. Bounded Authorization and Fail-Stop Execution
 
-Stop and return to the Human/ChatGPT architecture layer when:
+Human approval is bounded to the explicitly proposed action. Approval for one action must never be interpreted as blanket authorization for later remediation, installation, configuration change, retry, or adjacent operation.
+
+For state-changing work, the approved Plan or Task Contract must define, as applicable:
+
+- authorized action and target
+- relevant parameters and expected result
+- allowed state changes
+- pre-approved retry policy
+- stop conditions
+- read-only diagnostic allowlist that may be used after failure
+
+Execution semantics:
+
+```text
+APPROVED ACTION
+      |
+      v
+EXECUTE EXACTLY APPROVED ACTION
+      |
+      v
+OBSERVE RESULT / CAPTURE EVIDENCE
+      |
+      +-- expected result --> continue according to approved Plan
+      |
+      +-- unexpected result --> FAIL-STOP
+                                  |
+                                  +--> allowlisted read-only diagnostics only
+                                  +--> report observed Evidence
+                                  +--> formulate new Plan / hypothesis
+                                  +--> obtain new approval before state change
+```
+
+Rules:
+
+- `not visible` or `not found in the current agent session` does not prove `not installed` or `does not exist` on the host environment
+- install / upgrade / uninstall / PATH changes / service changes / system configuration changes are state-changing operations and require explicit scope or approval
+- a successful approval does not survive a failed hypothesis as implicit permission for the next hypothesis
+- retries are allowed only when covered by an explicit retry policy and the preconditions for retry remain valid
+- ad-hoc retry loops are prohibited; repeated attempts without new Evidence or a changed precondition must stop and escalate
+- after an unexpected result, an agent may continue only the pre-authorized read-only diagnostics needed to characterize the failure
+- a new remediation hypothesis that changes state requires a new Plan and approval
+- execution history, approval, observed result, and Evidence must remain traceable
+
+This rule applies to development toolchains as well as PowerVS, AIX, NIM, PowerHA, application deployment, and recovery operations. Risk level may change the approval mechanism, but not the bounded-authorization principle.
+
+## 9. Escalation Rules
+
+Stop and return to the Human/ChatGPT architecture or control layer when:
 
 - The implementation requires changing an accepted requirement
 - The architecture cannot support an Acceptance Criterion without redesign
 - A provider/product limitation invalidates a design assumption
 - Live Evidence contradicts the documented model
 - A destructive operation or production-like risk is introduced
+- An approved hypothesis/action completes without the expected result and further state-changing remediation is required
+- The execution environment cannot access a tool or resource that is known or expected to exist on the host, and resolving that mismatch would require environment mutation
+- Retry policy is exhausted or repeated attempts are no longer producing new Evidence
 - The reviewer identifies a concrete issue whose correct resolution requires a design decision
 
-Do not hide these conflicts by adding local workarounds.
+Do not hide these conflicts by adding local workarounds or widening the original approval.
 
-## 9. Core Principle
+## 10. Core Principle
 
-**Human owns Why and final judgement. ChatGPT governs What and architecture. Codex implements How. Claude Code independently verifies that How satisfies What. GitHub preserves the shared truth between them.**
+**Human owns Why and final judgement. ChatGPT governs What and architecture. Codex implements How within bounded authorization. Claude Code independently verifies that How satisfies What and the execution governance. GitHub preserves the shared truth between them.**
