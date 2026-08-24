@@ -230,4 +230,21 @@ sequenceDiagram
 - Evidence Plane: Collectors、Raw Store、Structured Store、Index、Graph
 - Learning Plane: Golden、Case、Rule Candidate、Regression
 - Approval Plane: GitHub PRまたは専用UI
+- Local Validation / CI Node: Intel Mac mini上のLima/QEMU x86_64 Linux、GitHub Actions self-hosted runner、Terraform静的検証、Secret Scan、Schema/Rule/Parser/Regression/Simulation Test、Evidence生成
 - Validation Plane: PowerVS + simulated upper Power platform
+
+## 3.9 Local Validation / CI Node
+
+常時利用可能なローカル検証基盤として、Intel Mac mini上にLima/QEMUによるx86_64 Linux環境を配置し、GitHub Actions self-hosted runnerから利用できる構成を採用できる。
+
+主な責務:
+
+- Pull Request head commitを固定した再現可能なValidation実行
+- `terraform fmt / init -backend=false / validate` 等の非live Terraform検証
+- Secret Scan
+- Schema / Rule / Parser / Regression / Simulation Test
+- Validation command、tool version、exit code、Git revision、execution environment識別情報を含むEvidence生成
+
+このNodeはExecution PlaneおよびEvidence Planeの実行基盤であり、**PowerVS Live Validation Platformの代替ではない**。
+
+Mac mini / Lima上で取得した結果は、Terraformコード、Rule、Parser、Simulation等のValidation Evidenceとして扱う。AIX / PowerVS / NIM / PowerHAの実測を必要とするAcceptance Criteriaは、従来どおりPowerVS Live Validation Platformまたは対象実機環境のEvidenceで証明する。
