@@ -282,6 +282,8 @@ AIX更新では「元に戻す」操作を安易に自動化せず、Golden Rele
 
 - Design / Rule / Schema / Release template変更はPR
 - CIでSchema、Rule、Plan、Regressionを検証
+- Local Validation / CI Node上のGitHub Actions self-hosted runnerから、PR head commitを固定して非live Validationを実行できる
+- Terraform静的検証、Secret Scan、Schema / Rule / Parser / Regression / Simulation Testの結果を対象commitへ追跡可能にする
 - Plan差分とPromotion条件をレビュー
 - 実行結果とEvidence ReportをRelease / commitへ紐付ける
 - Golden Release更新は承認履歴を残す
@@ -359,3 +361,27 @@ Retryはエラー時の自由な試行錯誤ではなくPlanの一部とする�
 - retry policyを超えた場合は`STOPPED_RETRY_EXHAUSTED`としてEscalationする
 
 Agentが同一ブロッカーに対して方法だけを変えながら探索を継続することをRetryとはみなさない。その場合は新しい仮説として再Plan・再承認を要求する。
+
+## 6.16 Local Validation / CI Execution Environment
+
+非live Validationの固定実行環境として、Intel Mac mini上のLima/QEMU x86_64 LinuxをGitHub Actions self-hosted runnerとして利用できる。
+
+対象:
+
+- Terraform `fmt / init -backend=false / validate`
+- Secret Scan
+- Schema / Rule / Parser Test
+- Regression / Simulation Test
+- Evidence生成処理
+
+正式Evidenceには最低限、以下を含める。
+
+- Git commit SHA / PR head SHA
+- 実行command
+- exit code / result
+- Terraform / Provider / relevant tool version
+- runner / execution environment識別情報
+
+この環境での成功は、PowerVSまたはAIXのlive stateを証明しない。PowerVS resource作成・削除、AIX実測、NIM、PowerHA等をAcceptance Criteriaとする場合は、PowerVS Live Validation Platformまたは対象実機環境で別途Evidenceを取得する。
+
+Local Validation / CI Nodeのtoolchain変更もADR-0005のBounded Authorization対象であり、install / upgrade / PATH等の環境変更を自動的なfailure remediationとして実行してはならない。

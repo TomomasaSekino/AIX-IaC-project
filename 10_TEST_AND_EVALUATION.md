@@ -37,6 +37,23 @@
 ### Simulation Test
 実機で直接触れないHMC、VIOS、SAN等の上位Power層を模擬Evidenceで検証する。
 
+### Local Validation / CI Test
+
+Intel Mac mini上のLima/QEMU x86_64 LinuxをGitHub Actions self-hosted runnerとして利用し、Pull Request head commitを固定した非live Validationを実行できる。
+
+対象例:
+
+- `terraform fmt -check`
+- `terraform init -backend=false`
+- `terraform validate`
+- Secret Scan
+- Schema / Rule / Parser Test
+- Regression / Simulation Test
+
+Validation EvidenceはGit revision、tool version、command、exit code / result、execution environmentを追跡可能にする。
+
+Local Validation / CI TestはTerraformコードや検証ロジックの再現性を証明するが、PowerVS / AIX / NIM / PowerHAのlive stateを証明するものではない。live stateをAcceptance CriteriaとするテストはPowerVS Field Validation等で別途実施する。
+
 ### PowerVS Field Validation
 PowerVS上で以下を実機検証する。
 
