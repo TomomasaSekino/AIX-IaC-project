@@ -1,0 +1,151 @@
+name: PVS-IAC-001 Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Branch, tag, or commit SHA to validate
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pvs-iac-001-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate Terraform and collect Evidence
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 30
+
+    env:
+      TF_DIR: infrastructure/powervs/minimal
+      EVIDENCE_DIR: validation-evidence/pvs-iac-001
+
+    steps:
+      - name: Checkout requested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_ref }}
+          fetch-depth: 0
+          clean: true
+
+      - name: Capture validation environment
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p "$EVIDENCE_DIR"
+          {
+            echo "task_id=PVS-IAC-001"
+            echo "requested_ref=${{ inputs.target_ref }}"
+            echo "validated_git_revision=$(git rev-parse HEAD)"
+            echo "github_run_id=${GITHUB_RUN_ID}"
+            echo "github_run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "github_actor=${GITHUB_ACTOR}"
+            echo "runner_name=${RUNNER_NAME}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "runner_arch=${RUNNER_ARCH}"
+            echo "hostname=$(hostname)"
+            echo "timestamp_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "uname=$(uname -a)"
+          } > "$EVIDENCE_DIR/environment.txt"
+
+          terraform version > "$EVIDENCE_DIR/terraform-version.txt" 2>&1
+          gitleaks version > "$EVIDENCE_DIR/gitleaks-version.txt" 2>&1
+
+      - name: Run required tests
+        id: required_tests
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "$EVIDENCE_DIR"
+          SUMMARY="$EVIDENCE_DIR/results.txt"
+          : > "$SUMMARY"
+
+          if [ ! -d "$TF_DIR" ]; then
+            echo "preflight: FAIL - Terraform directory not found: $TF_DIR" | tee -a "$SUMMARY"
+            exit 2
+          fi
+
+          run_test() {
+            name="$1"
+            shift
+            log="$EVIDENCE_DIR/${name}.log"
+
+            echo "command[$name]=$*" >> "$SUMMARY"
+            "$@" > "$log" 2>&1
+            rc=$?
+            echo "exit_code[$name]=$rc" >> "$SUMMARY"
+
+            if [ "$rc" -eq 0 ]; then
+              echo "result[$name]=PASS" >> "$SUMMARY"
+            else
+              echo "result[$name]=FAIL" >> "$SUMMARY"
+            fi
+
+            return "$rc"
+          }
+
+          overall=0
+
+          run_test terraform-fmt terraform -chdir="$TF_DIR" fmt -check -recursive -no-color
+          rc=$?
+          [ "$rc" -eq 0 ] || overall=1
+
+          run_test terraform-init terraform -chdir="$TF_DIR" init -backend=false -input=false -no-color
+          rc=$?
+          [ "$rc" -eq 0 ] || overall=1
+
+          if [ "$rc" -eq 0 ]; then
+            terraform -chdir="$TF_DIR" providers > "$EVIDENCE_DIR/terraform-providers.txt" 2>&1
+            provider_rc=$?
+            echo "command[terraform-providers]=terraform -chdir=$TF_DIR providers" >> "$SUMMARY"
+            echo "exit_code[terraform-providers]=$provider_rc" >> "$SUMMARY"
+            [ "$provider_rc" -eq 0 ] || overall=1
+          else
+            echo "terraform-providers: SKIPPED - terraform init failed" >> "$SUMMARY"
+          fi
+
+          run_test terraform-validate terraform -chdir="$TF_DIR" validate -no-color
+          rc=$?
+          [ "$rc" -eq 0 ] || overall=1
+
+          echo "command[gitleaks]=gitleaks git --no-banner --redact --report-format=json --report-path=$EVIDENCE_DIR/gitleaks-report.json ." >> "$SUMMARY"
+          gitleaks git --no-banner --redact --report-format=json --report-path="$EVIDENCE_DIR/gitleaks-report.json" . > "$EVIDENCE_DIR/gitleaks.log" 2>&1
+          rc=$?
+          echo "exit_code[gitleaks]=$rc" >> "$SUMMARY"
+          if [ "$rc" -eq 0 ]; then
+            echo "result[gitleaks]=PASS" >> "$SUMMARY"
+          else
+            echo "result[gitleaks]=FAIL" >> "$SUMMARY"
+            overall=1
+          fi
+
+          exit "$overall"
+
+      - name: Capture final Evidence snapshot
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "$EVIDENCE_DIR"
+          git rev-parse HEAD > "$EVIDENCE_DIR/validated-revision.txt" 2>&1
+          git status --short > "$EVIDENCE_DIR/git-status-after-validation.txt" 2>&1
+          git diff --stat > "$EVIDENCE_DIR/git-diff-stat-after-validation.txt" 2>&1
+
+          if [ -f "$TF_DIR/.terraform.lock.hcl" ]; then
+            cp "$TF_DIR/.terraform.lock.hcl" "$EVIDENCE_DIR/terraform.lock.hcl"
+            sha256sum "$TF_DIR/.terraform.lock.hcl" > "$EVIDENCE_DIR/terraform-lock-sha256.txt"
+          fi
+
+      - name: Upload Validation Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pvs-iac-001-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: validation-evidence/pvs-iac-001/
+          if-no-files-found: error
+          retention-days: 30
