@@ -1,0 +1,26 @@
+# Safe example values only. Do not store IBM Cloud API keys, private keys, passwords,
+# real customer host names, public IPs, or state output in Git.
+
+enable_live_resources = false
+
+ibm_region        = "jp-tok"
+powervs_zone      = "tok04"
+resource_group_id = "00000000000000000000000000000000"
+
+name_prefix  = "aix-iac-pvs-mvp"
+ssh_key_name = "existing-powervs-key"
+aix_image_id = "00000000-0000-0000-0000-000000000000"
+
+network_cidr     = "192.168.100.0/24"
+network_gateway  = "192.168.100.1"
+network_dns      = ["9.9.9.9"]
+network_ip_start = "192.168.100.10"
+network_ip_end   = "192.168.100.200"
+
+aix_instance_memory_gb  = 4
+aix_instance_processors = 0.25
+aix_processor_type      = "shared"
+aix_system_type         = "s922"
+
+data_volume_size_gb = 20
+data_volume_type    = "tier3"
