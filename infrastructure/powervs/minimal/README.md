@@ -86,12 +86,14 @@ From this directory:
 
 ```bash
 ./scripts/preflight.sh
+./scripts/preflight.sh path/to/live-validation.tfvars
 ```
 
 On Windows PowerShell:
 
 ```powershell
 ./scripts/preflight.ps1
+./scripts/preflight.ps1 -TfVarsPath path\to\live-validation.tfvars
 ```
 
 The preflight checks:
@@ -100,7 +102,16 @@ The preflight checks:
 - required Terraform files
 - default safety switch in `terraform.tfvars.example`
 - presence, but not value, of `IC_API_KEY`
-- required live validation inputs
+- required live validation inputs when a non-example tfvars file is supplied:
+  `ibm_region`, `powervs_zone`, `resource_group_id`, `ssh_key_name`, and
+  `aix_image_id`
+
+When run with the repository `terraform.tfvars.example`, preflight treats the
+file as a safe template check and explicitly reports that it is not live-ready.
+The safe example placeholders, including the all-zero resource group ID,
+all-zero AIX image ID, and `existing-powervs-key`, must not pass live-ready
+input validation. Supply a separate tfvars file for the later approved live
+validation task.
 
 The preflight does not call `terraform apply`, `terraform destroy`, or IBM Cloud
 resource mutation APIs.
