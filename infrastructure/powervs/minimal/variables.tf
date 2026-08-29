@@ -141,6 +141,12 @@ variable "public_network_exposure_reviewed" {
   default     = false
 }
 
+variable "private_network_route_reviewed" {
+  description = "Must be true only when Human has confirmed the private route, VPN, bastion, or equivalent path for AIX Evidence collection."
+  type        = bool
+  default     = false
+}
+
 variable "aix_evidence_ssh_user" {
   description = "AIX login user intended for read-only post-apply Evidence collection."
   type        = string

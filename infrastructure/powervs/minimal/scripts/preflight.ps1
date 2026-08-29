@@ -58,6 +58,20 @@ function Test-LiveInput {
     Write-Host "$Name is explicitly supplied for live validation; value intentionally not displayed."
 }
 
+function Test-TrueInput {
+    param(
+        [string]$Name,
+        [string]$Message
+    )
+
+    $value = Get-TfVarValue -Name $Name
+    if ($value -ne "true") {
+        throw "Live-ready preflight failed: $Message"
+    }
+
+    Write-Host "$Name is explicitly true for live validation."
+}
+
 Write-Host "PVS-IAC-002 preparation preflight: non-destructive checks only"
 
 $terraform = Get-Command terraform -ErrorAction SilentlyContinue
@@ -88,6 +102,7 @@ if ((Split-Path -Leaf $TfVarsPath) -eq "terraform.tfvars.example") {
     Write-Host "Safe template preflight: terraform.tfvars.example is intentionally not live-ready."
     Write-Host "Live-ready result: false. Supply a separate tfvars file for the later approved live validation task."
 } else {
+    Test-TrueInput -Name "enable_live_resources" -Message "enable_live_resources must be true in a live-ready tfvars file."
     Test-LiveInput -Name "ibm_region" -Placeholder ""
     Test-LiveInput -Name "powervs_zone" -Placeholder ""
     Test-LiveInput -Name "resource_group_id" -Placeholder "00000000000000000000000000000000"
@@ -104,21 +119,31 @@ if ((Split-Path -Leaf $TfVarsPath) -eq "terraform.tfvars.example") {
         }
         Write-Host "public-network reachability selected; exposure review flag is present. Public identifiers are not displayed."
     } elseif ($reachabilityMode -eq "private-network") {
-        Write-Host "private-network reachability selected. Confirm the Human-controlled execution environment has an approved private route before apply."
+        Test-TrueInput -Name "private_network_route_reviewed" -Message "private-network reachability requires private_network_route_reviewed = true after Human route/VPN/bastion confirmation."
+        Write-Host "private-network reachability selected; Human route confirmation flag is present."
     } else {
         throw "Live-ready preflight failed: aix_evidence_reachability_mode must be private-network or public-network."
     }
 
+    $apiKey = [Environment]::GetEnvironmentVariable("IC_API_KEY")
+    if ([string]::IsNullOrWhiteSpace($apiKey)) {
+        throw "Live-ready preflight failed: IC_API_KEY must exist in the local execution environment; value must not be displayed."
+    }
+    Write-Host "IC_API_KEY is set for live-ready validation; value intentionally not displayed."
+
     Write-Host "Live-ready input preflight passed for required non-secret inputs."
 }
 
-$requiredEnv = @("IC_API_KEY")
-foreach ($name in $requiredEnv) {
-    $value = [Environment]::GetEnvironmentVariable($name)
-    if ([string]::IsNullOrWhiteSpace($value)) {
-        Write-Warning "$name is not set. This is acceptable for fmt/validate but must be set for the later approved live task."
-    } else {
-        Write-Host "$name is set; value intentionally not displayed."
+$isSafeTemplate = (Split-Path -Leaf $TfVarsPath) -eq "terraform.tfvars.example"
+if ($isSafeTemplate) {
+    $requiredEnv = @("IC_API_KEY")
+    foreach ($name in $requiredEnv) {
+        $value = [Environment]::GetEnvironmentVariable($name)
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            Write-Warning "$name is not set. This is acceptable for fmt/validate but must be set for the later approved live task."
+        } else {
+            Write-Host "$name is set; value intentionally not displayed."
+        }
     }
 }
 

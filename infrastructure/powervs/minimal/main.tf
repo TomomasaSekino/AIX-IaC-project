@@ -110,6 +110,11 @@ resource "ibm_pi_instance" "aix" {
       condition     = var.aix_evidence_reachability_mode != "public-network" || var.public_network_exposure_reviewed
       error_message = "public-network reachability requires public_network_exposure_reviewed = true before live plan/apply."
     }
+
+    precondition {
+      condition     = var.aix_evidence_reachability_mode != "private-network" || var.private_network_route_reviewed
+      error_message = "private-network reachability requires private_network_route_reviewed = true after Human route/VPN/bastion confirmation before live plan/apply."
+    }
   }
 
   pi_network {

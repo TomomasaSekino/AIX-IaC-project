@@ -22,6 +22,7 @@ network_ip_end   = "192.168.100.200"
 
 aix_evidence_reachability_mode   = "private-network"
 public_network_exposure_reviewed = false
+private_network_route_reviewed   = false
 aix_evidence_ssh_user            = "root"
 
 aix_instance_memory_gb  = 4

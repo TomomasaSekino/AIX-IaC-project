@@ -124,8 +124,11 @@ environment and is used only for later read-only AIX Evidence collection.
 ## AIX Evidence Reachability
 
 Default reachability is `private-network`. The later live execution environment
-must have an approved private route, bastion, or equivalent path to the AIX VSI
-before apply is requested. If that route is not available, the live gate stops
+must have a Human-confirmed private route, VPN, bastion, or equivalent path to
+the AIX VSI before apply is requested. Set
+`private_network_route_reviewed = true` only after that confirmation. This flag
+does not automatically prove connectivity; it records the Human gate decision.
+If that route is not confirmed, preflight and Terraform preconditions stop
 before `terraform apply`.
 
 `public-network` can be selected only in a later live plan after Human review of
@@ -157,12 +160,13 @@ The preflight checks:
 - Terraform CLI availability and version
 - required Terraform files
 - default safety switch in `terraform.tfvars.example`
-- presence, but not value, of `IC_API_KEY`
+- presence, but not value, of `IC_API_KEY` only for live-ready preflight
 - required live validation inputs when a non-example tfvars file is supplied:
-  `ibm_region`, `powervs_zone`, `resource_group_id`, `ssh_public_key`,
-  `aix_stock_image_id`, `aix_stock_image_name`, and
-  `aix_evidence_reachability_mode`
+  `enable_live_resources = true`, `ibm_region`, `powervs_zone`,
+  `resource_group_id`, `ssh_public_key`, `aix_stock_image_id`,
+  `aix_stock_image_name`, and `aix_evidence_reachability_mode`
 - explicit rejection of repository safe placeholders in live-ready mode
+- private-network route confirmation when private reachability is selected
 - public-network exposure review flag when public reachability is selected
 
 When run with the repository `terraform.tfvars.example`, preflight treats the
@@ -210,7 +214,10 @@ apply or destroy.
 1. Create an untracked live tfvars file outside Git-managed examples.
 2. Set only non-secret parameters in that file, including region, zone,
    resource group ID, stock image ID/name, SSH public key, sizing, and
-   reachability mode.
+   reachability mode. For private reachability, set
+   `private_network_route_reviewed = true` only after Human confirmation of the
+   route, VPN, bastion, or equivalent path. For public reachability, set
+   `public_network_exposure_reviewed = true` only after Human exposure review.
 3. Temporarily inject `IC_API_KEY` into the Human-controlled local shell.
 4. Run preflight, `terraform init`, `terraform validate`, and `terraform plan`.
 5. Review selected AIX image identity, expected resources, CPU/memory/storage,
@@ -226,6 +233,16 @@ apply or destroy.
    command after post-apply Evidence review. Apply approval does not authorize
    destroy.
 
+The `ibm_pi_catalog_images` lookup depends on the newly created workspace ID.
+Because the workspace does not exist before the first live apply, the exact
+`aix_stock_image_id` / `aix_stock_image_name` catalog match cannot be
+conclusively evaluated at the initial plan stage. The check is first conclusive
+during apply after workspace creation. If the selected image identity does not
+match the catalog after the workspace is created, Terraform can stop with a
+partial-created state. Under ADR-0005 this is a Fail-Stop condition: the apply
+approval does not authorize remediation, retry, configuration changes, or
+destroy. A separate Human approval is required before any destroy action.
+
 ## Known Provider/Product Constraints
 
 - PowerVS workspaces are zone/datacenter-specific; provider `region` and `zone`
@@ -234,12 +251,19 @@ apply or destroy.
   PowerVS project/workspace. Stock images are imported with `ibm_pi_image`
   before instance creation.
 - The stock AIX image is selected by explicit ID and name. Ambiguous first-match
-  selection is intentionally not used.
+  selection is intentionally not used. The exact catalog match is conclusively
+  evaluated only after the new workspace exists during live apply.
 - SSH key lifecycle is Terraform-managed by `ibm_pi_key` using public key
   material only.
 - The private network uses `ibm_pi_network` with `pi_network_type = "vlan"`.
+- Private-network reachability requires
+  `private_network_route_reviewed = true` after Human route confirmation; this
+  is a gate, not an automated connectivity proof.
 - Public network reachability is disabled by default. If selected for temporary
   validation, exposure review is mandatory before plan/apply.
+- Image mismatch after workspace creation can leave partial-created resources
+  and must trigger ADR-0005 Fail-Stop. Apply approval does not include
+  remediation, retry, or destroy approval.
 - HMC, VIOS, SEA, FC Fabric, and SAN are IBM-managed or outside direct PowerVS
   user control in this research environment and must not be reported as live
   PowerVS Evidence.

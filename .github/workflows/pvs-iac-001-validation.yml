@@ -89,9 +89,103 @@ jobs:
             return "$rc"
           }
 
+          run_negative_test() {
+            name="$1"
+            shift
+            log="$EVIDENCE_DIR/${name}.log"
+
+            echo "command[$name]=$*" >> "$SUMMARY"
+            "$@" > "$log" 2>&1
+            rc=$?
+            echo "exit_code[$name]=$rc" >> "$SUMMARY"
+
+            if [ "$rc" -ne 0 ]; then
+              echo "result[$name]=PASS_EXPECTED_FAILURE" >> "$SUMMARY"
+              return 0
+            fi
+
+            echo "result[$name]=FAIL_UNEXPECTED_PASS" >> "$SUMMARY"
+            return 1
+          }
+
+          LIVE_READY_FIXTURE="$RUNNER_TEMP/pvs-iac-002-live-ready.tfvars"
+          ENABLE_FALSE_FIXTURE="$RUNNER_TEMP/pvs-iac-002-enable-false.tfvars"
+          PRIVATE_ROUTE_FALSE_FIXTURE="$RUNNER_TEMP/pvs-iac-002-private-route-false.tfvars"
+
+          cat > "$LIVE_READY_FIXTURE" <<'EOF'
+          enable_live_resources = true
+          ibm_region = "jp-tok"
+          powervs_zone = "tok04"
+          resource_group_id = "11111111111111111111111111111111"
+          name_prefix = "aix-iac-pvs-ci"
+          ssh_public_key = "ssh-rsa AAAA1111 pvs-iac-ci"
+          ssh_key_visibility = "workspace"
+          aix_stock_image_id = "11111111-1111-1111-1111-111111111111"
+          aix_stock_image_name = "AIX-ci-stock-image"
+          network_cidr = "192.168.100.0/24"
+          network_gateway = "192.168.100.1"
+          network_dns = ["9.9.9.9"]
+          network_ip_start = "192.168.100.10"
+          network_ip_end = "192.168.100.200"
+          aix_evidence_reachability_mode = "private-network"
+          public_network_exposure_reviewed = false
+          private_network_route_reviewed = true
+          aix_evidence_ssh_user = "root"
+          aix_instance_memory_gb = 4
+          aix_instance_processors = 0.25
+          aix_processor_type = "shared"
+          aix_system_type = "s922"
+          data_volume_size_gb = 20
+          data_volume_type = "tier3"
+          EOF
+
+          cat > "$ENABLE_FALSE_FIXTURE" <<'EOF'
+          enable_live_resources = false
+          ibm_region = "jp-tok"
+          powervs_zone = "tok04"
+          resource_group_id = "11111111111111111111111111111111"
+          name_prefix = "aix-iac-pvs-ci"
+          ssh_public_key = "ssh-rsa AAAA1111 pvs-iac-ci"
+          ssh_key_visibility = "workspace"
+          aix_stock_image_id = "11111111-1111-1111-1111-111111111111"
+          aix_stock_image_name = "AIX-ci-stock-image"
+          aix_evidence_reachability_mode = "private-network"
+          public_network_exposure_reviewed = false
+          private_network_route_reviewed = true
+          aix_evidence_ssh_user = "root"
+          EOF
+
+          cat > "$PRIVATE_ROUTE_FALSE_FIXTURE" <<'EOF'
+          enable_live_resources = true
+          ibm_region = "jp-tok"
+          powervs_zone = "tok04"
+          resource_group_id = "11111111111111111111111111111111"
+          name_prefix = "aix-iac-pvs-ci"
+          ssh_public_key = "ssh-rsa AAAA1111 pvs-iac-ci"
+          ssh_key_visibility = "workspace"
+          aix_stock_image_id = "11111111-1111-1111-1111-111111111111"
+          aix_stock_image_name = "AIX-ci-stock-image"
+          aix_evidence_reachability_mode = "private-network"
+          public_network_exposure_reviewed = false
+          private_network_route_reviewed = false
+          aix_evidence_ssh_user = "root"
+          EOF
+
           overall=0
 
           run_test preflight-safe-template sh -c "cd '$TF_DIR' && sh scripts/preflight.sh"
+          rc=$?
+          [ "$rc" -eq 0 ] || overall=1
+
+          run_test preflight-live-ready-synthetic env IC_API_KEY=ci-dummy-preflight-only sh -c "cd '$TF_DIR' && sh scripts/preflight.sh '$LIVE_READY_FIXTURE'"
+          rc=$?
+          [ "$rc" -eq 0 ] || overall=1
+
+          run_negative_test preflight-live-ready-enable-false env IC_API_KEY=ci-dummy-preflight-only sh -c "cd '$TF_DIR' && sh scripts/preflight.sh '$ENABLE_FALSE_FIXTURE'"
+          rc=$?
+          [ "$rc" -eq 0 ] || overall=1
+
+          run_negative_test preflight-live-ready-private-route-false env IC_API_KEY=ci-dummy-preflight-only sh -c "cd '$TF_DIR' && sh scripts/preflight.sh '$PRIVATE_ROUTE_FALSE_FIXTURE'"
           rc=$?
           [ "$rc" -eq 0 ] || overall=1
 
