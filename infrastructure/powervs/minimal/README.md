@@ -64,6 +64,8 @@ Primary source references:
 IBM PowerVS resource docs identify zone-specific provider settings. For a
 workspace in a zone such as `lon04`, the IBM provider should use
 `region = "lon"` and `zone = "lon04"`.
+For Tokyo, do not confuse the VPC region `jp-tok` with the PowerVS provider
+region. Use `ibm_region = "tok"` with `powervs_zone = "tok04"`.
 
 ## Architecture Boundary
 
@@ -247,6 +249,8 @@ destroy. A separate Human approval is required before any destroy action.
 
 - PowerVS workspaces are zone/datacenter-specific; provider `region` and `zone`
   must match the target PowerVS location.
+- Tokyo uses VPC region `jp-tok`, but the PowerVS provider region is `tok`;
+  the matching PowerVS zone is `tok04`.
 - `ibm_pi_instance.pi_image_id` can use only images belonging to the target
   PowerVS project/workspace. Stock images are imported with `ibm_pi_image`
   before instance creation.

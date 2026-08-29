@@ -5,9 +5,9 @@ variable "enable_live_resources" {
 }
 
 variable "ibm_region" {
-  description = "IBM Cloud region used by the provider. For a PowerVS zone such as lon04, use the region prefix such as lon."
+  description = "PowerVS provider region. For Tokyo PowerVS use tok with zone tok04; do not use the VPC region jp-tok here."
   type        = string
-  default     = "jp-tok"
+  default     = "tok"
 
   validation {
     condition     = length(trimspace(var.ibm_region)) > 0
