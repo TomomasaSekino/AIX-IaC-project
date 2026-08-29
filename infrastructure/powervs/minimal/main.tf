@@ -1,7 +1,7 @@
 locals {
   workspace_name = "${var.name_prefix}-workspace"
   network_name   = "${var.name_prefix}-net"
-  ssh_key_name    = "${var.name_prefix}-ssh-key"
+  ssh_key_name   = "${var.name_prefix}-ssh-key"
   instance_name  = "${var.name_prefix}-aix01"
   volume_name    = "${var.name_prefix}-data01"
 

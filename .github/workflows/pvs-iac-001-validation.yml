@@ -91,7 +91,7 @@ jobs:
 
           overall=0
 
-          run_test preflight-safe-template sh "$TF_DIR/scripts/preflight.sh"
+          run_test preflight-safe-template sh -c "cd '$TF_DIR' && sh scripts/preflight.sh"
           rc=$?
           [ "$rc" -eq 0 ] || overall=1
 
