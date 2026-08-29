@@ -71,7 +71,9 @@ resource "ibm_pi_key" "aix" {
 }
 
 data "ibm_pi_public_network" "validation" {
-  count = var.enable_live_resources && var.aix_evidence_reachability_mode == "public-network" ? 1 : 0
+  count = (
+    var.enable_live_resources && var.aix_evidence_reachability_mode == "public-network"
+  ) ? 1 : 0
 
   pi_cloud_instance_id = ibm_pi_workspace.this[0].id
 }
@@ -115,7 +117,9 @@ resource "ibm_pi_instance" "aix" {
   }
 
   dynamic "pi_network" {
-    for_each = var.aix_evidence_reachability_mode == "public-network" ? [data.ibm_pi_public_network.validation[0].id] : []
+    for_each = (
+      var.aix_evidence_reachability_mode == "public-network"
+    ) ? [data.ibm_pi_public_network.validation[0].id] : []
 
     content {
       network_id = pi_network.value
