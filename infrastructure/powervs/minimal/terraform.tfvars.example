@@ -3,7 +3,7 @@
 
 enable_live_resources = false
 
-ibm_region        = "jp-tok"
+ibm_region        = "tok"
 powervs_zone      = "tok04"
 resource_group_id = "00000000000000000000000000000000"
 
