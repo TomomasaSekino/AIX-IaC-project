@@ -27,10 +27,13 @@ function Get-TfVarValue {
     param([string]$Name)
 
     $content = Get-Content -LiteralPath $TfVarsPath
-    $pattern = '^\s*' + [regex]::Escape($Name) + '\s*=\s*"?([^"#\s]+)"?.*$'
+    $pattern = '^\s*' + [regex]::Escape($Name) + '\s*=\s*(?:"([^"]*)"|([^#\s]+)).*$'
     foreach ($line in $content) {
         if ($line -match $pattern) {
-            return $Matches[1]
+            if ($Matches[1]) {
+                return $Matches[1]
+            }
+            return $Matches[2]
         }
     }
 
@@ -55,7 +58,7 @@ function Test-LiveInput {
     Write-Host "$Name is explicitly supplied for live validation; value intentionally not displayed."
 }
 
-Write-Host "PVS-IAC-001 preflight: non-destructive checks only"
+Write-Host "PVS-IAC-002 preparation preflight: non-destructive checks only"
 
 $terraform = Get-Command terraform -ErrorAction SilentlyContinue
 if (-not $terraform) {
@@ -74,6 +77,9 @@ Test-RequiredFile $TfVarsPath
 Test-RequiredText -Path "versions.tf" -Pattern 'IBM-Cloud/ibm' -Message "versions.tf must require the official IBM Cloud provider."
 Test-RequiredText -Path "main.tf" -Pattern 'ibm_pi_workspace' -Message "main.tf must define a PowerVS workspace resource."
 Test-RequiredText -Path "main.tf" -Pattern 'ibm_pi_network' -Message "main.tf must define a PowerVS network resource."
+Test-RequiredText -Path "main.tf" -Pattern 'ibm_pi_catalog_images' -Message "main.tf must define a PowerVS catalog image lookup."
+Test-RequiredText -Path "main.tf" -Pattern 'ibm_pi_image' -Message "main.tf must define a PowerVS image import resource."
+Test-RequiredText -Path "main.tf" -Pattern 'ibm_pi_key' -Message "main.tf must define a Terraform-managed PowerVS SSH public key."
 Test-RequiredText -Path "main.tf" -Pattern 'ibm_pi_instance' -Message "main.tf must define a PowerVS AIX instance resource."
 Test-RequiredText -Path "main.tf" -Pattern 'ibm_pi_volume' -Message "main.tf must define a PowerVS volume resource."
 
@@ -85,8 +91,24 @@ if ((Split-Path -Leaf $TfVarsPath) -eq "terraform.tfvars.example") {
     Test-LiveInput -Name "ibm_region" -Placeholder ""
     Test-LiveInput -Name "powervs_zone" -Placeholder ""
     Test-LiveInput -Name "resource_group_id" -Placeholder "00000000000000000000000000000000"
-    Test-LiveInput -Name "ssh_key_name" -Placeholder "existing-powervs-key"
-    Test-LiveInput -Name "aix_image_id" -Placeholder "00000000-0000-0000-0000-000000000000"
+    Test-LiveInput -Name "ssh_public_key" -Placeholder "ssh-rsa AAAA0000000000000000000000000000000000000000000000000000000000000000 pvs-iac-placeholder"
+    Test-LiveInput -Name "aix_stock_image_id" -Placeholder "00000000-0000-0000-0000-000000000000"
+    Test-LiveInput -Name "aix_stock_image_name" -Placeholder "AIX-stock-image-placeholder"
+    Test-LiveInput -Name "aix_evidence_reachability_mode" -Placeholder ""
+
+    $reachabilityMode = Get-TfVarValue -Name "aix_evidence_reachability_mode"
+    if ($reachabilityMode -eq "public-network") {
+        $publicReviewed = Get-TfVarValue -Name "public_network_exposure_reviewed"
+        if ($publicReviewed -ne "true") {
+            throw "Live-ready preflight failed: public-network reachability requires public_network_exposure_reviewed = true after Human exposure review."
+        }
+        Write-Host "public-network reachability selected; exposure review flag is present. Public identifiers are not displayed."
+    } elseif ($reachabilityMode -eq "private-network") {
+        Write-Host "private-network reachability selected. Confirm the Human-controlled execution environment has an approved private route before apply."
+    } else {
+        throw "Live-ready preflight failed: aix_evidence_reachability_mode must be private-network or public-network."
+    }
+
     Write-Host "Live-ready input preflight passed for required non-secret inputs."
 }
 

@@ -1,5 +1,5 @@
 variable "enable_live_resources" {
-  description = "Safety switch. Keep false for PVS-IAC-001; set true only in the approved live apply/destroy task."
+  description = "Safety switch. Keep false for non-live validation; set true only for a separately approved PVS-IAC-002 live plan."
   type        = bool
   default     = false
 }
@@ -49,25 +49,48 @@ variable "name_prefix" {
   }
 }
 
-variable "ssh_key_name" {
-  description = "Existing PowerVS SSH key pair name. Do not store private keys or API keys in Terraform files."
+variable "ssh_public_key" {
+  description = "SSH public key material for the Terraform-managed PowerVS key. Never store the matching private key in this repository."
   type        = string
-  default     = "existing-powervs-key"
+  default     = "ssh-rsa AAAA0000000000000000000000000000000000000000000000000000000000000000 pvs-iac-placeholder"
+  sensitive   = false
 
   validation {
-    condition     = length(trimspace(var.ssh_key_name)) > 0
-    error_message = "ssh_key_name must not be empty."
+    condition     = can(regex("^ssh-rsa [A-Za-z0-9+/=]+( .*)?$", trimspace(var.ssh_public_key)))
+    error_message = "ssh_public_key must be an SSH RSA public key string."
   }
 }
 
-variable "aix_image_id" {
-  description = "PowerVS image ID already imported into the workspace. Stock images must be imported into the workspace before instance creation."
+variable "ssh_key_visibility" {
+  description = "Visibility for the Terraform-managed PowerVS SSH public key."
+  type        = string
+  default     = "workspace"
+
+  validation {
+    condition     = contains(["workspace", "account"], var.ssh_key_visibility)
+    error_message = "ssh_key_visibility must be workspace or account."
+  }
+}
+
+variable "aix_stock_image_id" {
+  description = "Explicit IBM stock AIX catalog image ID to import into the newly created PowerVS workspace."
   type        = string
   default     = "00000000-0000-0000-0000-000000000000"
 
   validation {
-    condition     = length(trimspace(var.aix_image_id)) > 0
-    error_message = "aix_image_id must not be empty."
+    condition     = length(trimspace(var.aix_stock_image_id)) > 0
+    error_message = "aix_stock_image_id must not be empty."
+  }
+}
+
+variable "aix_stock_image_name" {
+  description = "Explicit IBM stock AIX catalog image name expected to match aix_stock_image_id exactly during live plan."
+  type        = string
+  default     = "AIX-stock-image-placeholder"
+
+  validation {
+    condition     = length(trimspace(var.aix_stock_image_name)) > 0
+    error_message = "aix_stock_image_name must not be empty."
   }
 }
 
@@ -99,6 +122,34 @@ variable "network_ip_end" {
   description = "Last usable address for the PowerVS network IP range."
   type        = string
   default     = "192.168.100.200"
+}
+
+variable "aix_evidence_reachability_mode" {
+  description = "Network path intended for AIX read-only Evidence after apply. Public network mode requires explicit exposure review before live apply."
+  type        = string
+  default     = "private-network"
+
+  validation {
+    condition     = contains(["private-network", "public-network"], var.aix_evidence_reachability_mode)
+    error_message = "aix_evidence_reachability_mode must be private-network or public-network."
+  }
+}
+
+variable "public_network_exposure_reviewed" {
+  description = "Must be true only when Human has reviewed public SSH exposure, access controls, and validation duration for the exact live plan."
+  type        = bool
+  default     = false
+}
+
+variable "aix_evidence_ssh_user" {
+  description = "AIX login user intended for read-only post-apply Evidence collection."
+  type        = string
+  default     = "root"
+
+  validation {
+    condition     = length(trimspace(var.aix_evidence_ssh_user)) > 0
+    error_message = "aix_evidence_ssh_user must not be empty."
+  }
 }
 
 variable "aix_instance_memory_gb" {
@@ -160,5 +211,5 @@ variable "data_volume_type" {
 variable "tags" {
   description = "Non-secret tags applied to resources created by the follow-up live validation task."
   type        = list(string)
-  default     = ["project:aix-iac", "task:pvs-iac-001", "evidence-origin:live"]
+  default     = ["project:aix-iac", "task:pvs-iac-002", "evidence-origin:live"]
 }

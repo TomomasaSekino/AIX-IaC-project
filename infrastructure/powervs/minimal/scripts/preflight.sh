@@ -22,7 +22,7 @@ require_text() {
 
 tfvar_value() {
   key="$1"
-  sed -n -E "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\"?([^\"#[:space:]]+)\"?.*$/\1/p" "$TFVARS_PATH" | tail -n 1
+  sed -n -E "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\"([^\"]*)\".*$/\1/p; s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*([^#[:space:]]+).*$/\1/p" "$TFVARS_PATH" | tail -n 1
 }
 
 require_live_input() {
@@ -43,7 +43,7 @@ require_live_input() {
   echo "$key is explicitly supplied for live validation; value intentionally not displayed."
 }
 
-echo "PVS-IAC-001 preflight: non-destructive checks only"
+echo "PVS-IAC-002 preparation preflight: non-destructive checks only"
 
 if ! command -v terraform >/dev/null 2>&1; then
   echo "Terraform CLI is required but was not found in PATH." >&2
@@ -62,6 +62,9 @@ require_file "$TFVARS_PATH"
 require_text "versions.tf" 'IBM-Cloud/ibm' "versions.tf must require the official IBM Cloud provider."
 require_text "main.tf" 'ibm_pi_workspace' "main.tf must define a PowerVS workspace resource."
 require_text "main.tf" 'ibm_pi_network' "main.tf must define a PowerVS network resource."
+require_text "main.tf" 'ibm_pi_catalog_images' "main.tf must define a PowerVS catalog image lookup."
+require_text "main.tf" 'ibm_pi_image' "main.tf must define a PowerVS image import resource."
+require_text "main.tf" 'ibm_pi_key' "main.tf must define a Terraform-managed PowerVS SSH public key."
 require_text "main.tf" 'ibm_pi_instance' "main.tf must define a PowerVS AIX instance resource."
 require_text "main.tf" 'ibm_pi_volume' "main.tf must define a PowerVS volume resource."
 
@@ -73,8 +76,26 @@ else
   require_live_input "ibm_region" ""
   require_live_input "powervs_zone" ""
   require_live_input "resource_group_id" "00000000000000000000000000000000"
-  require_live_input "ssh_key_name" "existing-powervs-key"
-  require_live_input "aix_image_id" "00000000-0000-0000-0000-000000000000"
+  require_live_input "ssh_public_key" "ssh-rsa AAAA0000000000000000000000000000000000000000000000000000000000000000 pvs-iac-placeholder"
+  require_live_input "aix_stock_image_id" "00000000-0000-0000-0000-000000000000"
+  require_live_input "aix_stock_image_name" "AIX-stock-image-placeholder"
+  require_live_input "aix_evidence_reachability_mode" ""
+
+  reachability_mode="$(tfvar_value "aix_evidence_reachability_mode")"
+  if [ "$reachability_mode" = "public-network" ]; then
+    public_reviewed="$(tfvar_value "public_network_exposure_reviewed")"
+    if [ "$public_reviewed" != "true" ]; then
+      echo "Live-ready preflight failed: public-network reachability requires public_network_exposure_reviewed = true after Human exposure review." >&2
+      exit 1
+    fi
+    echo "public-network reachability selected; exposure review flag is present. Public identifiers are not displayed."
+  elif [ "$reachability_mode" = "private-network" ]; then
+    echo "private-network reachability selected. Confirm the Human-controlled execution environment has an approved private route before apply."
+  else
+    echo "Live-ready preflight failed: aix_evidence_reachability_mode must be private-network or public-network." >&2
+    exit 1
+  fi
+
   echo "Live-ready input preflight passed for required non-secret inputs."
 fi
 

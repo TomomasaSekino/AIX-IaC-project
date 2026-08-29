@@ -91,6 +91,10 @@ jobs:
 
           overall=0
 
+          run_test preflight-safe-template "$TF_DIR/scripts/preflight.sh"
+          rc=$?
+          [ "$rc" -eq 0 ] || overall=1
+
           run_test terraform-fmt terraform -chdir="$TF_DIR" fmt -check -recursive -no-color
           rc=$?
           [ "$rc" -eq 0 ] || overall=1
